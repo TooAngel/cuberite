@@ -15,12 +15,12 @@ Forwards the "use" event to the block entity. */
 class cBlockEntityHandler:
 	public cBlockHandler
 {
-	using super = cBlockHandler;
+	using Super = cBlockHandler;
 
 public:
 
 	cBlockEntityHandler(BLOCKTYPE a_BlockType):
-		super(a_BlockType)
+		Super(a_BlockType)
 	{
 	}
 
@@ -28,9 +28,16 @@ public:
 
 
 
-	virtual bool OnUse(cChunkInterface & a_ChunkInterface, cWorldInterface & a_WorldInterface, cPlayer & a_Player, int a_BlockX, int a_BlockY, int a_BlockZ, eBlockFace a_BlockFace, int a_CursorX, int a_CursorY, int a_CursorZ) override
+	virtual bool OnUse(
+		cChunkInterface & a_ChunkInterface,
+		cWorldInterface & a_WorldInterface,
+		cPlayer & a_Player,
+		const Vector3i a_BlockPos,
+		eBlockFace a_BlockFace,
+		const Vector3i a_CursorPos
+	) override
 	{
-		return a_ChunkInterface.UseBlockEntity(&a_Player, a_BlockX, a_BlockY, a_BlockZ);
+		return a_ChunkInterface.UseBlockEntity(&a_Player, a_BlockPos.x, a_BlockPos.y, a_BlockPos.z);
 	}
 
 

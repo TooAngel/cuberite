@@ -94,21 +94,21 @@ bool cPluginLua::Load(void)
 		lua_setglobal(m_LuaState, LUA_PLUGIN_NAME_VAR_NAME);
 
 		// Add the plugin's folder to the package.path and package.cpath variables (#693):
-		m_LuaState.AddPackagePath("path", FILE_IO_PREFIX + GetLocalFolder() + "/?.lua");
+		m_LuaState.AddPackagePath("path", GetLocalFolder() + "/?.lua");
 		#ifdef _WIN32
 			m_LuaState.AddPackagePath("cpath", GetLocalFolder() + "\\?.dll");
 		#else
-			m_LuaState.AddPackagePath("cpath", FILE_IO_PREFIX + GetLocalFolder() + "/?.so");
+			m_LuaState.AddPackagePath("cpath", GetLocalFolder() + "/?.so");
 		#endif
 
 		tolua_pushusertype(m_LuaState, this, "cPluginLua");
 		lua_setglobal(m_LuaState, "g_Plugin");
 	}
 
-	std::string PluginPath = FILE_IO_PREFIX + GetLocalFolder() + "/";
+	std::string PluginPath = GetLocalFolder() + "/";
 
 	// List all Lua files for this plugin. Info.lua has a special handling - make it the last to load:
-	AStringVector Files = cFile::GetFolderContents(PluginPath.c_str());
+	AStringVector Files = cFile::GetFolderContents(PluginPath);
 	AStringVector LuaFiles;
 	bool HasInfoLua = false;
 	for (AStringVector::const_iterator itr = Files.begin(), end = Files.end(); itr != end; ++itr)
@@ -187,7 +187,7 @@ bool cPluginLua::Load(void)
 void cPluginLua::Unload(void)
 {
 	ClearWebTabs();
-	super::Unload();
+	Super::Unload();
 	Close();
 }
 
@@ -665,9 +665,9 @@ bool cPluginLua::OnPlayerLeftClick(cPlayer & a_Player, int a_BlockX, int a_Block
 
 
 
-bool cPluginLua::OnPlayerMoving(cPlayer & a_Player, const Vector3d & a_OldPosition, const Vector3d & a_NewPosition)
+bool cPluginLua::OnPlayerMoving(cPlayer & a_Player, const Vector3d & a_OldPosition, const Vector3d & a_NewPosition, bool a_PreviousIsOnGround)
 {
-	return CallSimpleHooks(cPluginManager::HOOK_PLAYER_MOVING, &a_Player, a_OldPosition, a_NewPosition);
+	return CallSimpleHooks(cPluginManager::HOOK_PLAYER_MOVING, &a_Player, a_OldPosition, a_NewPosition, a_PreviousIsOnGround);
 }
 
 
@@ -712,6 +712,16 @@ bool cPluginLua::OnPlayerPlacingBlock(cPlayer & a_Player, const sSetBlock & a_Bl
 		a_BlockChange.GetX(), a_BlockChange.GetY(), a_BlockChange.GetZ(),
 		a_BlockChange.m_BlockType, a_BlockChange.m_BlockMeta
 	);
+}
+
+
+
+
+
+bool cPluginLua::OnPlayerCrouched(cPlayer & a_Player)
+{
+	return CallSimpleHooks(cPluginManager::HOOK_PLAYER_CROUCHED,
+		&a_Player);
 }
 
 
@@ -1093,6 +1103,7 @@ const char * cPluginLua::GetHookFnName(int a_HookType)
 		case cPluginManager::HOOK_PLAYER_OPENING_WINDOW:        return "OnPlayerOpeningWindow";
 		case cPluginManager::HOOK_PLAYER_PLACED_BLOCK:          return "OnPlayerPlacedBlock";
 		case cPluginManager::HOOK_PLAYER_PLACING_BLOCK:         return "OnPlayerPlacingBlock";
+		case cPluginManager::HOOK_PLAYER_CROUCHED:        		return "OnPlayerCrouched";
 		case cPluginManager::HOOK_PLAYER_RIGHT_CLICK:           return "OnPlayerRightClick";
 		case cPluginManager::HOOK_PLAYER_RIGHT_CLICKING_ENTITY: return "OnPlayerRightClickingEntity";
 		case cPluginManager::HOOK_PLAYER_SHOOTING:              return "OnPlayerShooting";

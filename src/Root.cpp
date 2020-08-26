@@ -24,6 +24,7 @@
 #include "BrewingRecipes.h"
 #include "FurnaceRecipe.h"
 #include "CraftingRecipes.h"
+#include "Protocol/RecipeMapper.h"
 #include "Bindings/PluginManager.h"
 #include "MonsterConfig.h"
 #include "Entities/Player.h"
@@ -213,6 +214,7 @@ void cRoot::Start(std::unique_ptr<cSettingsRepositoryInterface> a_OverridesRepo)
 	m_RankManager.reset(new cRankManager());
 	m_RankManager->Initialize(*m_MojangAPI);
 	m_CraftingRecipes = new cCraftingRecipes();
+	m_RecipeMapper.reset(new cRecipeMapper());
 	m_FurnaceRecipe   = new cFurnaceRecipe();
 	m_BrewingRecipes.reset(new cBrewingRecipes());
 
@@ -473,7 +475,7 @@ void cRoot::LoadWorlds(cDeadlockDetect & a_dd, cSettingsRepositoryInterface & a_
 	// Get the default world
 	AString DefaultWorldName = a_Settings.GetValueSet("Worlds", "DefaultWorld", "world");
 	AString DefaultWorldPath = a_Settings.GetValueSet("WorldPaths", DefaultWorldName, DefaultWorldName);
-	m_pDefaultWorld = new cWorld(DefaultWorldName.c_str(), DefaultWorldPath.c_str(), a_dd, WorldNames);
+	m_pDefaultWorld = new cWorld(DefaultWorldName, DefaultWorldPath, a_dd, WorldNames);
 	m_WorldsByName[ DefaultWorldName ] = m_pDefaultWorld;
 
 	// Then load the other worlds
@@ -505,7 +507,7 @@ void cRoot::LoadWorlds(cDeadlockDetect & a_dd, cSettingsRepositoryInterface & a_
 	*/
 
 	bool FoundAdditionalWorlds = false;
-	for (auto WorldNameValue : Worlds)
+	for (const auto & WorldNameValue : Worlds)
 	{
 		AString ValueName = WorldNameValue.first;
 		if (ValueName.compare("World") != 0)
@@ -527,7 +529,7 @@ void cRoot::LoadWorlds(cDeadlockDetect & a_dd, cSettingsRepositoryInterface & a_
 
 		// The default world is an overworld with no links
 		eDimension Dimension = dimOverworld;
-		AString LinkTo = "";
+		AString LinkTo;
 
 		// if the world is called x_nether
 		if ((LowercaseName.size() > NetherAppend.size()) && (LowercaseName.substr(LowercaseName.size() - NetherAppend.size()) == NetherAppend))
@@ -571,7 +573,7 @@ void cRoot::LoadWorlds(cDeadlockDetect & a_dd, cSettingsRepositoryInterface & a_
 			}
 			Dimension = dimEnd;
 		}
-		NewWorld = new cWorld(WorldName.c_str(), WorldPath.c_str(), a_dd, WorldNames, Dimension, LinkTo);
+		NewWorld = new cWorld(WorldName, WorldPath, a_dd, WorldNames, Dimension, LinkTo);
 		m_WorldsByName[WorldName] = NewWorld;
 	}  // for i - Worlds
 
@@ -891,11 +893,7 @@ bool cRoot::FindAndDoWithPlayer(const AString & a_PlayerName, cPlayerListCallbac
 				m_BestRating = Rating;
 				++m_NumMatches;
 			}
-			if (Rating == m_NameLength)  // Perfect match
-			{
-				return true;
-			}
-			return false;
+			return (Rating == m_NameLength);  // Perfect match
 		}
 
 		cCallback (const AString & a_CBPlayerName) :

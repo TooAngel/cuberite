@@ -7,30 +7,39 @@
 
 
 
+/** Handler for the small (singleblock) mushrooms. */
 class cBlockMushroomHandler:
 	public cClearMetaOnDrop<cBlockHandler>
 {
-	using super = cClearMetaOnDrop<cBlockHandler>;
+	using Super = cClearMetaOnDrop<cBlockHandler>;
 
 public:
 
 	cBlockMushroomHandler(BLOCKTYPE a_BlockType):
-		super(a_BlockType)
+		Super(a_BlockType)
 	{
 	}
 
+
+
+
+
 	// TODO: Add Mushroom Spread
 
-	virtual bool CanBeAt(cChunkInterface & a_ChunkInterface, int a_RelX, int a_RelY, int a_RelZ, const cChunk & a_Chunk) override
+
+
+
+
+	virtual bool CanBeAt(cChunkInterface & a_ChunkInterface, const Vector3i a_RelPos, const cChunk & a_Chunk) override
 	{
-		if (a_RelY <= 0)
+		if (a_RelPos.y <= 0)
 		{
 			return false;
 		}
 
 		// TODO: Cannot be at too much daylight
 
-		switch (a_Chunk.GetBlock(a_RelX, a_RelY - 1, a_RelZ))
+		switch (a_Chunk.GetBlock(a_RelPos.addedY(-1)))
 		{
 			case E_BLOCK_GLASS:
 			case E_BLOCK_CACTUS:
@@ -44,6 +53,10 @@ public:
 		}
 		return true;
 	}
+
+
+
+
 
 	virtual ColourID GetMapBaseColourID(NIBBLETYPE a_Meta) override
 	{

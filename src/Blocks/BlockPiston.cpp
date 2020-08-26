@@ -1,6 +1,7 @@
 
 #include "Globals.h"
 #include "BlockPiston.h"
+#include "../BlockInfo.h"
 #include "../Item.h"
 #include "../World.h"
 #include "../Entities/Player.h"
@@ -17,7 +18,7 @@
 
 
 cBlockPistonHandler::cBlockPistonHandler(BLOCKTYPE a_BlockType):
-	super(a_BlockType)
+	Super(a_BlockType)
 {
 }
 
@@ -40,22 +41,6 @@ void cBlockPistonHandler::OnBroken(
 			a_ChunkInterface.DropBlockAsPickups(extPos);
 		}
 	}
-}
-
-
-
-
-
-bool cBlockPistonHandler::GetPlacementBlockTypeMeta(
-	cChunkInterface & a_ChunkInterface, cPlayer & a_Player,
-	int a_BlockX, int a_BlockY, int a_BlockZ, eBlockFace a_BlockFace,
-	int a_CursorX, int a_CursorY, int a_CursorZ,
-	BLOCKTYPE & a_BlockType, NIBBLETYPE & a_BlockMeta
-)
-{
-	a_BlockType = m_BlockType;
-	a_BlockMeta = RotationPitchToMetaData(a_Player.GetYaw(), a_Player.GetPitch());
-	return true;
 }
 
 
@@ -141,6 +126,11 @@ bool cBlockPistonHandler::CanPushBlock(
 	BLOCKTYPE currBlock;
 	NIBBLETYPE currMeta;
 	a_World.GetBlockTypeMeta(a_BlockPos.x, a_BlockPos.y, a_BlockPos.z, currBlock, currMeta);
+
+	if (!cChunkDef::IsValidHeight(a_BlockPos.y))
+	{
+		return !a_RequirePushable;
+	}
 
 	if (currBlock == E_BLOCK_AIR)
 	{
@@ -291,9 +281,10 @@ void cBlockPistonHandler::RetractPiston(Vector3i a_BlockPos, cWorld & a_World)
 				return;
 			}
 
-			// Remove extension, update base state
-			World.SetBlock(extensionPos.x, extensionPos.y, extensionPos.z, E_BLOCK_AIR, 0);
-			World.SetBlock(a_BlockPos.x, a_BlockPos.y, a_BlockPos.z, pistonBlock, pistonMeta & ~(8));
+			// Remove extension, update base state. Calling FastSetBlock inhibits OnBroken being called by SetBlock.
+			World.FastSetBlock(extensionPos, E_BLOCK_AIR, 0);
+			World.SetBlock(extensionPos, E_BLOCK_AIR, 0);
+			World.SetBlock(a_BlockPos, pistonBlock, pistonMeta & ~(8));
 
 			// (Retraction is always successful, but play in the task for consistency)
 			World.BroadcastSoundEffect("block.piston.contract", a_BlockPos, 0.5f, 0.7f);
@@ -329,7 +320,7 @@ void cBlockPistonHandler::RetractPiston(Vector3i a_BlockPos, cWorld & a_World)
 // cBlockPistonHeadHandler:
 
 cBlockPistonHeadHandler::cBlockPistonHeadHandler(void) :
-	super(E_BLOCK_PISTON_EXTENSION)
+	Super(E_BLOCK_PISTON_EXTENSION)
 {
 }
 

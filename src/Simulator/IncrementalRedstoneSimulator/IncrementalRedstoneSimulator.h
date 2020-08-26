@@ -8,13 +8,15 @@
 
 
 
-class cIncrementalRedstoneSimulator :
+class cIncrementalRedstoneSimulator:
 	public cRedstoneSimulator
 {
-	typedef cRedstoneSimulator super;
+	using Super = cRedstoneSimulator;
+
 public:
-	cIncrementalRedstoneSimulator(cWorld & a_World) :
-		super(a_World)
+
+	cIncrementalRedstoneSimulator(cWorld & a_World):
+		Super(a_World)
 	{
 	}
 
@@ -31,10 +33,7 @@ public:
 		return IsRedstone(a_BlockType);
 	}
 
-	virtual void AddBlock(Vector3i a_Block, cChunk * a_Chunk) override
-	{
-		m_Data.WakeUp(a_Block);
-	}
+	virtual void AddBlock(Vector3i a_Block, cChunk * a_Chunk) override;
 
 	/** Returns if a block is a mechanism (something that accepts power and does something)
 	Used by torches to determine if they will power a block
@@ -62,6 +61,7 @@ public:
 			case E_BLOCK_JUNGLE_DOOR:
 			case E_BLOCK_JUNGLE_FENCE_GATE:
 			case E_BLOCK_NOTE_BLOCK:
+			case E_BLOCK_OBSERVER:
 			case E_BLOCK_PISTON:
 			case E_BLOCK_POWERED_RAIL:
 			case E_BLOCK_REDSTONE_LAMP_OFF:
@@ -128,6 +128,7 @@ public:
 			case E_BLOCK_LEVER:
 			case E_BLOCK_LIGHT_WEIGHTED_PRESSURE_PLATE:
 			case E_BLOCK_NOTE_BLOCK:
+			case E_BLOCK_OBSERVER:
 			case E_BLOCK_POWERED_RAIL:
 			case E_BLOCK_REDSTONE_LAMP_OFF:
 			case E_BLOCK_REDSTONE_LAMP_ON:

@@ -11,14 +11,12 @@
 
 
 
-cEnchantingWindow::cEnchantingWindow(int a_BlockX, int a_BlockY, int a_BlockZ) :
+cEnchantingWindow::cEnchantingWindow(Vector3i a_BlockPos) :
 	cWindow(wtEnchantment, "Enchant"),
 	m_SlotArea(),
-	m_BlockX(a_BlockX),
-	m_BlockY(a_BlockY),
-	m_BlockZ(a_BlockZ)
+	m_BlockPos(a_BlockPos)
 {
-	m_SlotArea = new cSlotAreaEnchanting(*this, m_BlockX, m_BlockY, m_BlockZ);
+	m_SlotArea = new cSlotAreaEnchanting(*this, m_BlockPos);
 	m_SlotAreas.push_back(m_SlotArea);
 	m_SlotAreas.push_back(new cSlotAreaInventory(*this));
 	m_SlotAreas.push_back(new cSlotAreaHotBar(*this));
@@ -37,7 +35,7 @@ void cEnchantingWindow::SetProperty(short a_Property, short a_Value, cPlayer & a
 	}
 
 	m_PropertyValue[a_Property] = a_Value;
-	super::SetProperty(a_Property, a_Value, a_Player);
+	Super::SetProperty(a_Property, a_Value, a_Player);
 }
 
 
@@ -53,7 +51,7 @@ void cEnchantingWindow::SetProperty(short a_Property, short a_Value)
 	}
 
 	m_PropertyValue[a_Property] = a_Value;
-	super::SetProperty(a_Property, a_Value);
+	Super::SetProperty(a_Property, a_Value);
 }
 
 
@@ -84,13 +82,13 @@ void cEnchantingWindow::DistributeStack(cItem & a_ItemStack, int a_Slot, cPlayer
 		// Enchanting Area
 		AreasInOrder.push_back(m_SlotAreas[2]);  /* Hotbar    */
 		AreasInOrder.push_back(m_SlotAreas[1]);  /* Inventory */
-		super::DistributeStackToAreas(a_ItemStack, a_Player, AreasInOrder, a_ShouldApply, true);
+		Super::DistributeStackToAreas(a_ItemStack, a_Player, AreasInOrder, a_ShouldApply, true);
 	}
 	else
 	{
 		// Inventory or Hotbar
 		AreasInOrder.push_back(m_SlotAreas[0]);  /* Enchanting */
-		super::DistributeStackToAreas(a_ItemStack, a_Player, AreasInOrder, a_ShouldApply, false);
+		Super::DistributeStackToAreas(a_ItemStack, a_Player, AreasInOrder, a_ShouldApply, false);
 	}
 }
 

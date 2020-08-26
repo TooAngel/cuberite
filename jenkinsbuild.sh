@@ -56,11 +56,14 @@ export CUBERITE_BUILD_SERIES_NAME="$SERVERNAME $TARGET $COMPILEMODE ($BRANCH)"
 export CUBERITE_BUILD_ID="$BUILDID"
 export CUBERITE_BUILD_DATETIME="`date`"
 
-export CCACHE_CPP2=true
-CACHE_ARGS="-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
+if [ -x "$(command -v ccache)" ]
+then
+	export CCACHE_CPP2=true
+	CACHE_ARGS="-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
+fi
 
 # Build
-CXX=$CXXCOMP CC=$CCOMP cmake . -DNO_NATIVE_OPTIMIZATION=1 -DBUILD_TOOLS=1 ${TOOLCHAINFILE} ${COMPILEMODE^^} ${FORCE32^^}
+CXX=$CXXCOMP CC=$CCOMP cmake . -DNO_NATIVE_OPTIMIZATION=1 ${CACHE_ARGS} ${TOOLCHAINFILE} ${COMPILEMODE} ${FORCE32}
 make -j 2
 
 
@@ -79,6 +82,7 @@ popd
 sha1sum Cuberite.tar.gz > Cuberite.tar.gz.sha1
 
 # Package ProtoProxy
-pushd Tools/ProtoProxy
-sha1sum ProtoProxy > ProtoProxy.sha1
-popd
+# This tool is very out of date, uncomment when it's being worked on again
+# pushd Tools/ProtoProxy
+# sha1sum ProtoProxy > ProtoProxy.sha1
+# popd

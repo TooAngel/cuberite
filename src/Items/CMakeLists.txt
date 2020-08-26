@@ -1,28 +1,26 @@
+target_sources(
+	${CMAKE_PROJECT_NAME} PRIVATE
 
-SET (SRCS
 	ItemHandler.cpp
-)
 
-SET (HDRS
 	ItemArmor.h
+	ItemAxe.h
 	ItemBed.h
 	ItemBigFlower.h
 	ItemBoat.h
 	ItemBottle.h
 	ItemBow.h
-	ItemBrewingStand.h
 	ItemBucket.h
-	ItemCake.h
-	ItemCauldron.h
 	ItemChest.h
 	ItemCloth.h
 	ItemComparator.h
+	ItemCookedFish.h
 	ItemDoor.h
 	ItemDye.h
 	ItemEmptyMap.h
 	ItemFishingRod.h
-	ItemFlowerPot.h
 	ItemFood.h
+	ItemFoodSeeds.h
 	ItemGoldenApple.h
 	ItemHandler.h
 	ItemHoe.h
@@ -37,25 +35,24 @@ SET (HDRS
 	ItemNetherWart.h
 	ItemPainting.h
 	ItemPickaxe.h
+	ItemPoisonousPotato.h
 	ItemPotion.h
 	ItemPumpkin.h
+	ItemRawChicken.h
+	ItemRawFish.h
 	ItemRedstoneDust.h
 	ItemRedstoneRepeater.h
+	ItemRottenFlesh.h
 	ItemSapling.h
 	ItemSeeds.h
 	ItemShears.h
 	ItemShovel.h
 	ItemSign.h
 	ItemSlab.h
+	ItemSoup.h
 	ItemSpawnEgg.h
-	ItemString.h
-	ItemSugarcane.h
+	ItemSpiderEye.h
 	ItemSword.h
 	ItemThrowable.h
-	ItemAxe.h
+	SimplePlaceableItemHandler.h
 )
-
-if(NOT MSVC)
-	add_library(Items ${SRCS} ${HDRS})
-	target_link_libraries(Items fmt::fmt)
-endif()

@@ -28,7 +28,10 @@
 #include "../Blocks/ChunkInterface.h"
 
 #include "../IniFile.h"
+#include "../JsonUtils.h"
 #include "json/json.h"
+
+#include "../CraftingRecipes.h"
 
 // 6000 ticks or 5 minutes
 #define PLAYER_INVENTORY_SAVE_INTERVAL 6000
@@ -62,7 +65,7 @@ AString GetUUIDFolderName(const cUUID & a_Uuid)
 {
 	AString UUID = a_Uuid.ToShortString();
 
-	AString res(FILE_IO_PREFIX "players/");
+	AString res("players/");
 	res.append(UUID, 0, 2);
 	res.push_back('/');
 	return res;
@@ -85,8 +88,8 @@ const int cPlayer::EATING_TICKS = 30;
 
 
 
-cPlayer::cPlayer(cClientHandlePtr a_Client, const AString & a_PlayerName) :
-	super(etPlayer, 0.6, 1.8),
+cPlayer::cPlayer(const cClientHandlePtr & a_Client, const AString & a_PlayerName) :
+	Super(etPlayer, 0.6, 1.8),
 	m_bVisible(true),
 	m_FoodLevel(MAX_FOOD_LEVEL),
 	m_FoodSaturationLevel(5.0),
@@ -193,7 +196,60 @@ bool cPlayer::Initialize(OwnedEntity a_Self, cWorld & a_World)
 
 	cPluginManager::Get()->CallHookSpawnedEntity(*GetWorld(), *this);
 
+	if (m_KnownRecipes.empty())
+	{
+		m_ClientHandle->SendInitRecipes(0);
+	}
+	else
+	{
+		for (const auto KnownRecipe : m_KnownRecipes)
+		{
+			m_ClientHandle->SendInitRecipes(KnownRecipe);
+		}
+	}
+
 	return true;
+}
+
+
+
+
+
+void cPlayer::AddKnownItem(const cItem & a_Item)
+{
+	if (a_Item.m_ItemType < 0)
+	{
+		return;
+	}
+
+	auto Response = m_KnownItems.insert(a_Item.CopyOne());
+	if (!Response.second)
+	{
+		// The item was already known, bail out:
+		return;
+	}
+
+	// Process the recipes that got unlocked by this newly-known item:
+	auto Recipes = cRoot::Get()->GetCraftingRecipes()->FindNewRecipesForItem(a_Item, m_KnownItems);
+	for (const auto & RecipeId : Recipes)
+	{
+		AddKnownRecipe(RecipeId);
+	}
+}
+
+
+
+
+
+void cPlayer::AddKnownRecipe(UInt32 a_RecipeId)
+{
+	auto Response = m_KnownRecipes.insert(a_RecipeId);
+	if (!Response.second)
+	{
+		// The recipe was already known, bail out:
+		return;
+	}
+	m_ClientHandle->SendUnlockRecipe(a_RecipeId);
 }
 
 
@@ -227,7 +283,7 @@ cPlayer::~cPlayer(void)
 void cPlayer::Destroyed()
 {
 	CloseWindow(false);
-	super::Destroyed();
+	Super::Destroyed();
 }
 
 
@@ -306,7 +362,7 @@ void cPlayer::Tick(std::chrono::milliseconds a_Dt, cChunk & a_Chunk)
 
 	ASSERT(a_Chunk.IsValid());
 
-	super::Tick(a_Dt, a_Chunk);
+	Super::Tick(a_Dt, a_Chunk);
 
 	// Handle charging the bow:
 	if (m_IsChargingBow)
@@ -600,7 +656,7 @@ void cPlayer::SetTouchGround(bool a_bTouchGround)
 
 void cPlayer::Heal(int a_Health)
 {
-	super::Heal(a_Health);
+	Super::Heal(a_Health);
 	SendHealth();
 }
 
@@ -681,6 +737,24 @@ void cPlayer::AddFoodExhaustion(double a_Exhaustion)
 
 
 
+void cPlayer::TossItems(const cItems & a_Items)
+{
+	if (IsGameModeSpectator())  // Players can't toss items in spectator
+	{
+		return;
+	}
+
+	m_Stats.AddValue(statItemsDropped, static_cast<StatValue>(a_Items.Size()));
+
+	const auto Speed = (GetLookVector() + Vector3d(0, 0.2, 0)) * 6;  // A dash of height and a dollop of speed
+	const auto Position = GetEyePosition() - Vector3d(0, 0.2, 0);  // Correct for eye-height weirdness
+	m_World->SpawnItemPickups(a_Items, Position, Speed, true);  // 'true' because created by player
+}
+
+
+
+
+
 void cPlayer::StartEating(void)
 {
 	// Set the timer:
@@ -711,10 +785,6 @@ void cPlayer::FinishEating(void)
 	if (!ItemHandler->EatItem(this, &Item))
 	{
 		return;
-	}
-	if (!IsGameModeCreative())
-	{
-		GetInventory().RemoveOneEquippedItem();
 	}
 	ItemHandler->OnFoodEaten(m_World, this, &Item);
 }
@@ -867,12 +937,17 @@ void cPlayer::SetFlyingMaxSpeed(double a_Speed)
 void cPlayer::SetCrouch(bool a_IsCrouched)
 {
 	// Set the crouch status, broadcast to all visible players
-
 	if (a_IsCrouched == m_IsCrouched)
 	{
 		// No change
 		return;
 	}
+
+	if (a_IsCrouched)
+	{
+		cRoot::Get()->GetPluginManager()->CallHookPlayerCrouched(*this);
+	}
+
 	m_IsCrouched = a_IsCrouched;
 	m_World->BroadcastEntityMetadata(*this);
 }
@@ -1000,10 +1075,6 @@ void cPlayer::ApplyArmorDamage(int a_DamageBlocked)
 
 bool cPlayer::DoTakeDamage(TakeDamageInfo & a_TDI)
 {
-	SetSpeed(0, 0, 0);
-	// Prevents knocking the player in the wrong direction due to
-	// the speed vector problems, see #2865
-	// In the future, the speed vector should be fixed
 	if ((a_TDI.DamageType != dtInVoid) && (a_TDI.DamageType != dtPlugin))
 	{
 		if (IsGameModeCreative() || IsGameModeSpectator())
@@ -1027,7 +1098,7 @@ bool cPlayer::DoTakeDamage(TakeDamageInfo & a_TDI)
 		}
 	}
 
-	if (super::DoTakeDamage(a_TDI))
+	if (Super::DoTakeDamage(a_TDI))
 	{
 		// Any kind of damage adds food exhaustion
 		AddFoodExhaustion(0.3f);
@@ -1077,7 +1148,7 @@ void cPlayer::NotifyNearbyWolves(cPawn * a_Opponent, bool a_IsPlayerInvolved)
 
 void cPlayer::KilledBy(TakeDamageInfo & a_TDI)
 {
-	super::KilledBy(a_TDI);
+	Super::KilledBy(a_TDI);
 
 	if (m_Health > 0)
 	{
@@ -1225,7 +1296,7 @@ void cPlayer::Respawn(void)
 
 	if (GetWorld() != m_SpawnWorld)
 	{
-		MoveToWorld(m_SpawnWorld, GetLastBedPos(), false);
+		MoveToWorld(*m_SpawnWorld, GetLastBedPos(), false, false);
 	}
 	else
 	{
@@ -1650,11 +1721,10 @@ void cPlayer::TeleportToCoords(double a_PosX, double a_PosY, double a_PosZ)
 	//  ask plugins to allow teleport to the new position.
 	if (!cRoot::Get()->GetPluginManager()->CallHookEntityTeleport(*this, m_LastPosition, Vector3d(a_PosX, a_PosY, a_PosZ)))
 	{
-		ResetPosition({a_PosX, a_PosY, a_PosZ});
+		SetPosition({a_PosX, a_PosY, a_PosZ});
 		FreezeInternal(GetPosition(), false);
 		m_bIsTeleporting = true;
 
-		m_World->BroadcastTeleportEntity(*this, GetClientHandle());
 		m_ClientHandle->SendPlayerMoveLook();
 	}
 }
@@ -1700,6 +1770,23 @@ void cPlayer::SendRotation(double a_YawDegrees, double a_PitchDegrees)
 	SetYaw(a_YawDegrees);
 	SetPitch(a_PitchDegrees);
 	m_ClientHandle->SendPlayerMoveLook();
+}
+
+
+
+
+
+void cPlayer::SpectateEntity(cEntity * a_Target)
+{
+	if ((a_Target == nullptr) || (static_cast<cEntity *>(this) == a_Target))
+	{
+		GetClientHandle()->SendCameraSetTo(*this);
+		m_AttachedTo = nullptr;
+		return;
+	}
+
+	m_AttachedTo = a_Target;
+	GetClientHandle()->SendCameraSetTo(*m_AttachedTo);
 }
 
 
@@ -1752,7 +1839,7 @@ void cPlayer::DoSetSpeed(double a_SpeedX, double a_SpeedY, double a_SpeedZ)
 		// Do not set speed to a frozen client
 		return;
 	}
-	super::DoSetSpeed(a_SpeedX, a_SpeedY, a_SpeedZ);
+	Super::DoSetSpeed(a_SpeedX, a_SpeedY, a_SpeedZ);
 	// Send the speed to the client so he actualy moves
 	m_ClientHandle->SendEntityVelocity(*this);
 }
@@ -1837,14 +1924,8 @@ bool cPlayer::PermissionMatches(const AStringVector & a_Permission, const AStrin
 	}
 
 	// So far all the sub-items have matched
-	// If the sub-item count is the same, then the permission matches:
-	if (lenP == lenT)
-	{
-		return true;
-	}
-
-	// There are more sub-items in either the permission or the template, not a match:
-	return false;
+	// If the sub-item count is the same, then the permission matches
+	return (lenP == lenT);
 }
 
 
@@ -1945,6 +2026,25 @@ void cPlayer::TossEquippedItem(char a_Amount)
 
 
 
+void cPlayer::ReplaceOneEquippedItemTossRest(const cItem & a_Item)
+{
+	auto PlacedCount = GetInventory().ReplaceOneEquippedItem(a_Item);
+	char ItemCountToToss = a_Item.m_ItemCount - static_cast<char>(PlacedCount);
+
+	if (ItemCountToToss == 0)
+	{
+		return;
+	}
+
+	cItem Pickup = a_Item;
+	Pickup.m_ItemCount = ItemCountToToss;
+	TossPickup(Pickup);
+}
+
+
+
+
+
 void cPlayer::TossHeldItem(char a_Amount)
 {
 	cItems Drops;
@@ -1978,25 +2078,6 @@ void cPlayer::TossPickup(const cItem & a_Item)
 	Drops.push_back(a_Item);
 
 	TossItems(Drops);
-}
-
-
-
-
-
-void cPlayer::TossItems(const cItems & a_Items)
-{
-	if (IsGameModeSpectator())  // Players can't toss items in spectator
-	{
-		return;
-	}
-
-	m_Stats.AddValue(statItemsDropped, static_cast<StatValue>(a_Items.Size()));
-
-	double vX = 0, vY = 0, vZ = 0;
-	EulerToVector(-GetYaw(), GetPitch(), vZ, vX, vY);
-	vY = -vY * 2 + 1.f;
-	m_World->SpawnItemPickups(a_Items, GetPosX(), GetEyeHeight(), GetPosZ(), vX * 3, vY * 3, vZ * 3, true);  // 'true' because created by player
 }
 
 
@@ -2165,10 +2246,13 @@ bool cPlayer::LoadFromFile(const AString & a_FileName, cWorldPtr & a_World)
 
 	// Parse the JSON format:
 	Json::Value root;
-	Json::Reader reader;
-	if (!reader.parse(buffer, root, false))
+	AString ParseError;
+	if (!JsonUtils::ParseString(buffer, root, &ParseError))
 	{
-		LOGWARNING("Cannot parse player data in file \"%s\"", a_FileName.c_str());
+		FLOGWARNING(
+			"Cannot parse player data in file \"{0}\":\n  {1}",
+			a_FileName, ParseError
+		);
 		return false;
 	}
 
@@ -2199,6 +2283,26 @@ bool cPlayer::LoadFromFile(const AString & a_FileName, cWorldPtr & a_World)
 	m_LifetimeTotalXp     = root.get("xpTotal",        0).asInt();
 	m_CurrentXp           = root.get("xpCurrent",      0).asInt();
 	m_IsFlying            = root.get("isflying",       0).asBool();
+
+	Json::Value & JSON_KnownItems = root["knownItems"];
+	for (UInt32 i = 0; i < JSON_KnownItems.size(); i++)
+	{
+		cItem Item;
+		Item.FromJson(JSON_KnownItems[i]);
+		m_KnownItems.insert(Item);
+	}
+
+	const auto & RecipeNameMap = cRoot::Get()->GetCraftingRecipes()->GetRecipeNameMap();
+
+	Json::Value & JSON_KnownRecipes = root["knownRecipes"];
+	for (UInt32 i = 0; i < JSON_KnownRecipes.size(); i++)
+	{
+		auto RecipeId = RecipeNameMap.find(JSON_KnownRecipes[i].asString());
+		if (RecipeId != RecipeNameMap.end())
+		{
+			m_KnownRecipes.insert(RecipeId->second);
+		}
+	}
 
 	m_GameMode = static_cast<eGameMode>(root.get("gamemode", eGameMode_NotSet).asInt());
 
@@ -2298,10 +2402,27 @@ bool cPlayer::SaveToDisk()
 	Json::Value JSON_EnderChestInventory;
 	cEnderChestEntity::SaveToJson(JSON_EnderChestInventory, m_EnderChestContents);
 
+	Json::Value JSON_KnownItems;
+	for (const auto & KnownItem : m_KnownItems)
+	{
+		Json::Value JSON_Item;
+		KnownItem.GetJson(JSON_Item);
+		JSON_KnownItems.append(JSON_Item);
+	}
+
+	Json::Value JSON_KnownRecipes;
+	for (auto KnownRecipe : m_KnownRecipes)
+	{
+		auto Recipe = cRoot::Get()->GetCraftingRecipes()->GetRecipeById(KnownRecipe);
+		JSON_KnownRecipes.append(Recipe->m_RecipeName);
+	}
+
 	Json::Value root;
 	root["position"]            = JSON_PlayerPosition;
 	root["rotation"]            = JSON_PlayerRotation;
 	root["inventory"]           = JSON_Inventory;
+	root["knownItems"]          = JSON_KnownItems;
+	root["knownRecipes"]        = JSON_KnownRecipes;
 	root["equippedItemSlot"]    = m_Inventory.GetEquippedSlotNum();
 	root["enderchestinventory"] = JSON_EnderChestInventory;
 	root["health"]              = m_Health;
@@ -2338,9 +2459,7 @@ bool cPlayer::SaveToDisk()
 		root["gamemode"] = static_cast<int>(eGameMode_NotSet);
 	}
 
-	Json::StyledWriter writer;
-	std::string JsonData = writer.write(root);
-
+	auto JsonData = JsonUtils::WriteStyledString(root);
 	AString SourceFile = GetUUIDFileName(m_UUID);
 
 	cFile f;
@@ -2747,7 +2866,7 @@ bool cPlayer::DoesPlacingBlocksIntersectEntity(const sSetBlockVector & a_Blocks)
 			{
 				return false;
 			}
-			cBoundingBox EntBox(a_Entity.GetPosition(), a_Entity.GetWidth() / 2, a_Entity.GetHeight());
+			auto EntBox = a_Entity.GetBoundingBox();
 			for (auto BlockBox : PlacementBoxes)
 			{
 				// Put in a little bit of wiggle room
@@ -2841,12 +2960,11 @@ void cPlayer::AttachTo(cEntity * a_AttachTo)
 	// Different attach, if this is a spectator
 	if (IsGameModeSpectator())
 	{
-		m_AttachedTo = a_AttachTo;
-		GetClientHandle()->SendCameraSetTo(*m_AttachedTo);
+		SpectateEntity(a_AttachTo);
 		return;
 	}
 
-	super::AttachTo(a_AttachTo);
+	Super::AttachTo(a_AttachTo);
 }
 
 
@@ -2870,7 +2988,7 @@ void cPlayer::Detach()
 		return;
 	}
 
-	super::Detach();
+	Super::Detach();
 	int PosX = POSX_TOINT;
 	int PosY = POSY_TOINT;
 	int PosZ = POSZ_TOINT;
@@ -2916,7 +3034,7 @@ AString cPlayer::GetUUIDFileName(const cUUID & a_UUID)
 {
 	AString UUID = a_UUID.ToLongString();
 
-	AString res(FILE_IO_PREFIX "players/");
+	AString res("players/");
 	res.append(UUID, 0, 2);
 	res.push_back('/');
 	res.append(UUID, 2, AString::npos);
@@ -3067,15 +3185,5 @@ float cPlayer::GetExplosionExposureRate(Vector3d a_ExplosionPosition, float a_Ex
 		return 0;  // No impact from explosion
 	}
 
-	return super::GetExplosionExposureRate(a_ExplosionPosition, a_ExlosionPower);
+	return Super::GetExplosionExposureRate(a_ExplosionPosition, a_ExlosionPower) / 30.0f;
 }
-
-
-
-
-
-
-
-
-
-

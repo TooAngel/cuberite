@@ -10,16 +10,16 @@
 /** Handler for stems from which produce grows in an adjacent block (melon, pumpkin) after it becomes ripe (meta == 7).
 ProduceBlockType is the blocktype for the produce to be grown.
 StemPickupType is the item type for the pickup resulting from breaking the stem. */
-template <BLOCKTYPE ProduceBlockType, ENUM_ITEM_ID StemPickupType>
+template <BLOCKTYPE ProduceBlockType, ENUM_ITEM_TYPE StemPickupType>
 class cBlockStemsHandler:
 	public cBlockPlant<true>
 {
-	using super = cBlockPlant<true>;
+	using Super = cBlockPlant<true>;
 
 public:
 
 	cBlockStemsHandler(BLOCKTYPE a_BlockType):
-		super(a_BlockType)
+		Super(a_BlockType)
 	{
 	}
 
@@ -36,9 +36,9 @@ public:
 
 
 
-	virtual bool CanBeAt(cChunkInterface & a_ChunkInterface, int a_RelX, int a_RelY, int a_RelZ, const cChunk & a_Chunk) override
+	virtual bool CanBeAt(cChunkInterface & a_ChunkInterface, const Vector3i a_RelPos, const cChunk & a_Chunk) override
 	{
-		return ((a_RelY > 0) && (a_Chunk.GetBlock(a_RelX, a_RelY - 1, a_RelZ) == E_BLOCK_FARMLAND));
+		return ((a_RelPos.y > 0) && (a_Chunk.GetBlock(a_RelPos.addedY(-1)) == E_BLOCK_FARMLAND));
 	}
 
 

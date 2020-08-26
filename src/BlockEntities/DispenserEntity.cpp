@@ -2,19 +2,19 @@
 #include "Globals.h"  // NOTE: MSVC stupidness requires this to be the same across all modules
 
 #include "DispenserEntity.h"
-#include "../Simulator/FluidSimulator.h"
-#include "../Entities/Boat.h"
 #include "../Chunk.h"
-
+#include "../BlockInfo.h"
 #include "../Defines.h"
 #include "../World.h"
+#include "../Entities/Boat.h"
 #include "../Entities/ProjectileEntity.h"
-
+#include "../Simulator/FluidSimulator.h"
+#include "../Items/ItemSpawnEgg.h"
 
 
 
 cDispenserEntity::cDispenserEntity(BLOCKTYPE a_BlockType, NIBBLETYPE a_BlockMeta, Vector3i a_Pos, cWorld * a_World):
-	super(a_BlockType, a_BlockMeta, a_Pos, a_World)
+	Super(a_BlockType, a_BlockMeta, a_Pos, a_World)
 {
 	ASSERT(a_BlockType == E_BLOCK_DISPENSER);
 }
@@ -114,7 +114,8 @@ void cDispenserEntity::DropSpenseFromSlot(cChunk & a_Chunk, int a_SlotNum)
 		{
 			double MobX = 0.5 + dispAbsCoord.x;
 			double MobZ = 0.5 + dispAbsCoord.z;
-			if (m_World->SpawnMob(MobX, dispAbsCoord.y, MobZ, static_cast<eMonsterType>(m_Contents.GetSlot(a_SlotNum).m_ItemDamage), false) != cEntity::INVALID_ID)
+			auto MonsterType = cItemSpawnEggHandler::ItemDamageToMonsterType(m_Contents.GetSlot(a_SlotNum).m_ItemDamage);
+			if (m_World->SpawnMob(MobX, dispAbsCoord.y, MobZ, MonsterType, false) != cEntity::INVALID_ID)
 			{
 				m_Contents.ChangeSlotCount(a_SlotNum, -1);
 			}
@@ -306,7 +307,7 @@ Vector3d cDispenserEntity::GetShootVector(NIBBLETYPE a_Meta)
 
 bool cDispenserEntity::ScoopUpLiquid(int a_SlotNum, short a_ResultingBucketItemType)
 {
-	cItem LiquidBucket(a_ResultingBucketItemType, 1);
+	cItem LiquidBucket(a_ResultingBucketItemType);
 	if (m_Contents.GetSlot(a_SlotNum).m_ItemCount == 1)
 	{
 		// Special case: replacing one empty bucket with one full bucket

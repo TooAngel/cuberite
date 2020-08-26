@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include "../BoundingBox.h"
 #include "../Item.h"
 #include "../OSSupport/AtomicUniquePtr.h"
 
@@ -12,7 +13,7 @@
 #define CLASS_PROTODEF(classname) \
 	virtual bool IsA(const char * a_ClassName) const override\
 	{ \
-		return ((a_ClassName != nullptr) && ((strcmp(a_ClassName, #classname) == 0) || super::IsA(a_ClassName))); \
+		return ((a_ClassName != nullptr) && ((strcmp(a_ClassName, #classname) == 0) || Super::IsA(a_ClassName))); \
 	} \
 	virtual const char * GetClass(void) const override \
 	{ \
@@ -24,7 +25,7 @@
 	} \
 	virtual const char * GetParentClass(void) const override \
 	{ \
-		return super::GetClass(); \
+		return Super::GetClass(); \
 	}
 
 #define POSX_TOINT FloorC(GetPosX())
@@ -188,6 +189,7 @@ public:
 
 	eEntityType GetEntityType(void) const { return m_EntityType; }
 
+	bool IsArrow       (void) const { return IsA("cArrowEntity");              }
 	bool IsEnderCrystal(void) const { return (m_EntityType == etEnderCrystal); }
 	bool IsPlayer      (void) const { return (m_EntityType == etPlayer);       }
 	bool IsPickup      (void) const { return (m_EntityType == etPickup);       }
@@ -239,6 +241,8 @@ public:
 	int GetChunkX(void) const { return FloorC(m_Position.x / cChunkDef::Width); }
 	int GetChunkZ(void) const { return FloorC(m_Position.z / cChunkDef::Width); }
 
+	cBoundingBox GetBoundingBox() const { return cBoundingBox(GetPosition(), GetWidth() / 2, GetHeight()); }
+
 	void SetHeadYaw (double a_HeadYaw);
 	void SetMass    (double a_Mass);
 	void SetPosX    (double a_PosX) { SetPosition({a_PosX, m_Position.y, m_Position.z}); }
@@ -289,14 +293,10 @@ public:
 	If this returns false, you must stop using the cEntity pointer you have. */
 	bool IsTicking(void) const;
 
+	// tolua_end
 	/** Destroys the entity, schedules it for memory freeing and broadcasts the DestroyEntity packet */
 	virtual void Destroy();
-
-	OBSOLETE void Destroy(bool a_ShouldBroadcast)
-	{
-		LOGWARNING("cEntity:Destory(bool) is deprecated, use cEntity:Destroy() instead.");
-		Destroy();
-	}
+	// tolua_begin
 
 	/** Makes this pawn take damage from an attack by a_Attacker. Damage values are calculated automatically and DoTakeDamage() called */
 	void TakeDamage(cEntity & a_Attacker);
@@ -338,7 +338,7 @@ public:
 
 	/** Returns the last position we sent to all the clients. Use this to
 	initialize clients with our position. */
-	Vector3d GetLastSentPos(void) const { return m_LastSentPosition; }
+	Vector3d GetLastSentPosition(void) const { return m_LastSentPosition; }
 
 	/** Destroy the entity without scheduling memory freeing. This should only be used by cChunk or cClientHandle for internal memory management. */
 	void DestroyNoScheduling(bool a_ShouldBroadcast);
@@ -357,10 +357,10 @@ public:
 	virtual bool ArmorCoversAgainst(eDamageType a_DamageType);
 
 	/** Returns the hitpoints out of a_RawDamage that the currently equipped armor would cover */
-	virtual int GetArmorCoverAgainst(const cEntity * a_Attacker, eDamageType a_DamageType, int a_RawDamage);
+	virtual float GetArmorCoverAgainst(const cEntity * a_Attacker, eDamageType a_DamageType, int a_RawDamage);
 
 	/** Returns the hitpoints that the currently equipped armor's enchantments would cover */
-	virtual int GetEnchantmentCoverAgainst(const cEntity * a_Attacker, eDamageType a_DamageType, int a_Damage);
+	virtual float GetEnchantmentCoverAgainst(const cEntity * a_Attacker, eDamageType a_DamageType, int a_Damage);
 
 	/** Returns explosion knock back reduction percent from blast protection level
 	@return knock back reduce percent */
@@ -469,21 +469,21 @@ public:
 	virtual void TeleportToCoords(double a_PosX, double a_PosY, double a_PosZ);
 
 	/** Schedules a MoveToWorld call to occur on the next Tick of the entity */
-	OBSOLETE void ScheduleMoveToWorld(cWorld * a_World, Vector3d a_NewPosition, bool a_ShouldSetPortalCooldown = false, bool a_ShouldSendRespawn = false)
+	[[deprecated]] void ScheduleMoveToWorld(cWorld & a_World, Vector3d a_NewPosition, bool a_ShouldSetPortalCooldown = false, bool a_ShouldSendRespawn = true)
 	{
 		LOGWARNING("ScheduleMoveToWorld is deprecated, use MoveToWorld instead");
 		MoveToWorld(a_World, a_NewPosition, a_ShouldSetPortalCooldown, a_ShouldSendRespawn);
 	}
 
-	bool MoveToWorld(cWorld * a_World, Vector3d a_NewPosition, bool a_ShouldSetPortalCooldown = false, bool a_ShouldSendRespawn = false);
+	bool MoveToWorld(cWorld & a_World, Vector3d a_NewPosition, bool a_ShouldSetPortalCooldown = false, bool a_ShouldSendRespawn = true);
 
-	bool MoveToWorld(cWorld * a_World, bool a_ShouldSendRespawn, Vector3d a_NewPosition)
+	bool MoveToWorld(cWorld & a_World, bool a_ShouldSendRespawn, Vector3d a_NewPosition)
 	{
 		return MoveToWorld(a_World, a_NewPosition, false, a_ShouldSendRespawn);
 	}
 
 	/** Moves entity to specified world, taking a world pointer */
-	bool MoveToWorld(cWorld * a_World, bool a_ShouldSendRespawn = true);
+	bool MoveToWorld(cWorld & a_World, bool a_ShouldSendRespawn = true);
 
 	/** Moves entity to specified world, taking a world name */
 	bool MoveToWorld(const AString & a_WorldName, bool a_ShouldSendRespawn = true);
@@ -493,7 +493,7 @@ public:
 	/** Returns true if a world change is scheduled to happen. */
 	bool IsWorldChangeScheduled() const
 	{
-		return (m_WorldChangeInfo.load() != nullptr);
+		return (m_WorldChangeInfo.m_NewWorld != nullptr);
 	}
 
 	/** Updates clients of changes in the entity. */
@@ -510,6 +510,10 @@ public:
 
 	/** Returns true if this entity is attached to the specified entity */
 	bool IsAttachedTo(const cEntity * a_Entity) const;
+
+	/** Returns whether the entity's orientation has been set manually.
+	Primarily inteded for protocol use. */
+	bool IsOrientationDirty() const;
 
 	/** Makes sure head yaw is not over the specified range. */
 	void WrapHeadYaw();
@@ -656,14 +660,18 @@ protected:
 	Data: https://minecraft.gamepedia.com/Entity#Motion_of_entities */
 	float m_AirDrag;
 
+	/** Last position sent to client via the Relative Move or Teleport packets (not Velocity)
+	Only updated if cEntity::BroadcastMovementUpdate() is called! */
+	Vector3d m_LastSentPosition;
+
 	Vector3d m_LastPosition;
 
 	eEntityType m_EntityType;
 
 	cWorld * m_World;
 
-	/** If not nullptr, a world change is scheduled and a task is queued in the current world. */
-	cAtomicUniquePtr<sWorldChangeInfo> m_WorldChangeInfo;
+	/** If field m_NewWorld not nullptr, a world change is scheduled and a task is queued in the current world. */
+	sWorldChangeInfo m_WorldChangeInfo;
 
 	/** Whether the entity is capable of taking fire or lava damage. */
 	bool m_IsFireproof;
@@ -751,10 +759,6 @@ private:
 
 	/** Position of the entity's XZ center and Y bottom */
 	Vector3d m_Position;
-
-	/** Last position sent to client via the Relative Move or Teleport packets (not Velocity)
-	Only updated if cEntity::BroadcastMovementUpdate() is called! */
-	Vector3d m_LastSentPosition;
 
 	/** Measured in meter / second */
 	Vector3d m_WaterSpeed;

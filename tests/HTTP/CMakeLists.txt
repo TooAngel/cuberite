@@ -1,11 +1,5 @@
-cmake_minimum_required(VERSION 3.0.2)
-enable_testing()
-
 include_directories(${CMAKE_SOURCE_DIR}/src/)
-include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/lib/libevent/include)
 include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/lib/mbedtls/include)
-
-add_definitions(-DTEST_GLOBALS=1)
 
 # Create a single HTTP library that contains all the HTTP code:
 set (HTTP_SRCS
@@ -104,5 +98,5 @@ set_target_properties(
 )
 set_target_properties(
 	HTTP
-	PROPERTIES FOLDER Lib
+	PROPERTIES FOLDER Tests/Libraries
 )

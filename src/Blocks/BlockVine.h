@@ -9,12 +9,12 @@
 class cBlockVineHandler :
 	public cBlockHandler
 {
-	using super = cBlockHandler;
+	using Super = cBlockHandler;
 
 public:
 
 	cBlockVineHandler(BLOCKTYPE a_BlockType):
-		super(a_BlockType)
+		Super(a_BlockType)
 	{
 	}
 
@@ -23,23 +23,25 @@ public:
 
 
 	virtual bool GetPlacementBlockTypeMeta(
-		cChunkInterface & a_ChunkInterface, cPlayer & a_Player,
-		int a_BlockX, int a_BlockY, int a_BlockZ, eBlockFace a_BlockFace,
-		int a_CursorX, int a_CursorY, int a_CursorZ,
+		cChunkInterface & a_ChunkInterface,
+		cPlayer & a_Player,
+		const Vector3i a_PlacedBlockPos,
+		eBlockFace a_ClickedBlockFace,
+		const Vector3i a_CursorPos,
 		BLOCKTYPE & a_BlockType, NIBBLETYPE & a_BlockMeta
 	) override
 	{
 		// TODO: Disallow placement where the vine doesn't attach to something properly
 		BLOCKTYPE BlockType = 0;
 		NIBBLETYPE BlockMeta;
-		a_ChunkInterface.GetBlockTypeMeta({a_BlockX, a_BlockY, a_BlockZ}, BlockType, BlockMeta);
+		a_ChunkInterface.GetBlockTypeMeta(a_PlacedBlockPos, BlockType, BlockMeta);
 		if (BlockType == m_BlockType)
 		{
-			a_BlockMeta = BlockMeta | DirectionToMetaData(a_BlockFace);
+			a_BlockMeta = BlockMeta | DirectionToMetaData(a_ClickedBlockFace);
 		}
 		else
 		{
-			a_BlockMeta = DirectionToMetaData(a_BlockFace);
+			a_BlockMeta = DirectionToMetaData(a_ClickedBlockFace);
 		}
 		a_BlockType = m_BlockType;
 		return true;
@@ -221,25 +223,33 @@ public:
 
 
 
-	virtual void OnUpdate(cChunkInterface & a_ChunkInterface, cWorldInterface & a_WorldInterface, cBlockPluginInterface & a_BlockPluginInterface, cChunk & a_Chunk, int a_RelX, int a_RelY, int a_RelZ) override
+	virtual void OnUpdate(
+		cChunkInterface & a_ChunkInterface,
+		cWorldInterface & a_WorldInterface,
+		cBlockPluginInterface & a_PluginInterface,
+		cChunk & a_Chunk,
+		const Vector3i a_RelPos
+	) override
 	{
 		UNUSED(a_ChunkInterface);
 		UNUSED(a_WorldInterface);
 
 		// Vine cannot grow down if at the bottom:
-		if (a_RelY < 1)
+		auto GrowPos = a_RelPos.addedY(-1);
+		if (!cChunkDef::IsValidHeight(GrowPos.y))
 		{
 			return;
 		}
 
 		// Grow one block down, if possible:
 		BLOCKTYPE Block;
-		a_Chunk.UnboundedRelGetBlockType(a_RelX, a_RelY - 1, a_RelZ, Block);
+		a_Chunk.UnboundedRelGetBlockType(GrowPos, Block);
 		if (Block == E_BLOCK_AIR)
 		{
-			if (!a_BlockPluginInterface.CallHookBlockSpread(a_RelX + a_Chunk.GetPosX() * cChunkDef::Width, a_RelY - 1, a_RelZ + a_Chunk.GetPosZ() * cChunkDef::Width, ssVineSpread))
+			auto WorldPos = a_Chunk.RelativeToAbsolute(GrowPos);
+			if (!a_PluginInterface.CallHookBlockSpread(WorldPos.x, WorldPos.y, WorldPos.z, ssVineSpread))
 			{
-				a_Chunk.UnboundedRelSetBlock(a_RelX, a_RelY - 1, a_RelZ, E_BLOCK_VINES, a_Chunk.GetMeta(a_RelX, a_RelY, a_RelZ));
+				a_Chunk.UnboundedRelSetBlock(GrowPos, E_BLOCK_VINES, a_Chunk.GetMeta(a_RelPos));
 			}
 		}
 	}

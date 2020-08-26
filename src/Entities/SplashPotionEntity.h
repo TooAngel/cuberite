@@ -26,7 +26,7 @@ class cSplashPotionEntity :
 {
 	// tolua_end
 
-	using super = cProjectileEntity;
+	using Super = cProjectileEntity;
 
 public:  // tolua_export
 
@@ -76,15 +76,13 @@ protected:
 		}
 		else
 		{
-			super::Tick(a_Dt, a_Chunk);
+			Super::Tick(a_Dt, a_Chunk);
 		}
 	}
 
 	/** Splashes the potion, fires its particle effects and sounds
 	@param a_HitPos     The position where the potion will splash */
 	void Splash(Vector3d a_HitPos);
-
-	virtual void SpawnOn(cClientHandle & a_Client) override;
 
 private:
 	/** Time in ticks to wait for the hit animation to begin before destroying */

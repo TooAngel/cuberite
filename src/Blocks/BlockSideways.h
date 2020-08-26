@@ -13,12 +13,12 @@ Additionally supports the metadata specifying block sub-type in its lower 2 bits
 class cBlockSidewaysHandler:
 	public cBlockHandler
 {
-	using super = cBlockHandler;
+	using Super = cBlockHandler;
 
 public:
 
 	cBlockSidewaysHandler(BLOCKTYPE a_BlockType):
-		super(a_BlockType)
+		Super(a_BlockType)
 	{
 	}
 
@@ -27,15 +27,17 @@ public:
 
 
 	virtual bool GetPlacementBlockTypeMeta(
-		cChunkInterface & a_ChunkInterface, cPlayer & a_Player,
-		int a_BlockX, int a_BlockY, int a_BlockZ, eBlockFace a_BlockFace,
-		int a_CursorX, int a_CursorY, int a_CursorZ,
+		cChunkInterface & a_ChunkInterface,
+		cPlayer & a_Player,
+		const Vector3i a_PlacedBlockPos,
+		eBlockFace a_ClickedBlockFace,
+		const Vector3i a_CursorPos,
 		BLOCKTYPE & a_BlockType, NIBBLETYPE & a_BlockMeta
 	) override
 	{
 		a_BlockType = m_BlockType;
 		NIBBLETYPE Meta = static_cast<NIBBLETYPE>(a_Player.GetEquippedItem().m_ItemDamage);
-		a_BlockMeta = BlockFaceToMetaData(a_BlockFace, Meta);
+		a_BlockMeta = BlockFaceToMetaData(a_ClickedBlockFace, Meta);
 		return true;
 	}
 

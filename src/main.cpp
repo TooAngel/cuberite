@@ -10,20 +10,6 @@
 
 
 
-#ifdef ANDROID
-	// Workaround for Android NDK builds that do not support std::to_string
-	namespace std
-	{
-		template <typename T>
-		std::string to_string(T Value)
-		{
-			std::ostringstream TempStream;
-			TempStream << Value;
-			return TempStream.str();
-		}
-	}
-#endif
-
 #ifdef _MSC_VER
 	#include <dbghelp.h>
 #endif  // _MSC_VER
@@ -235,7 +221,7 @@ static void UniversalMain(std::unique_ptr<cSettingsRepositoryInterface> a_Overri
 		cRoot Root;
 		Root.Start(std::move(a_OverridesRepo));
 	}
-	catch (const fmt::FormatError & exc)
+	catch (const fmt::format_error & exc)
 	{
 		cRoot::m_TerminateEventRaised = true;
 		FLOGERROR("Formatting exception: {0}", exc.what());

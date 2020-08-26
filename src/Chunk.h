@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include "BlockEntities/BlockEntity.h"
 #include "Entities/Entity.h"
 #include "ChunkData.h"
 
@@ -27,6 +28,7 @@ class cChunkDataCallback;
 class cCommandBlockEntity;
 class cDispenserEntity;
 class cFurnaceEntity;
+class cHopperEntity;
 class cNoteEntity;
 class cMobHeadEntity;
 class cFlowerPotEntity;
@@ -145,10 +147,11 @@ public:
 	void Tick(std::chrono::milliseconds a_Dt);
 
 	/** Ticks a single block. Used by cWorld::TickQueuedBlocks() to tick the queued blocks */
-	void TickBlock(int a_RelX, int a_RelY, int a_RelZ);
+	void TickBlock(const Vector3i a_RelPos);
 
 	int GetPosX(void) const { return m_PosX; }
 	int GetPosZ(void) const { return m_PosZ; }
+	cChunkCoords GetPos() const { return {m_PosX, m_PosZ}; }
 
 	cWorld * GetWorld(void) const { return m_World; }
 
@@ -332,6 +335,9 @@ public:
 	/** Calls the callback for the furnace at the specified coords; returns false if there's no furnace at those coords or callback returns true, returns true if found */
 	bool DoWithFurnaceAt(int a_BlockX, int a_BlockY, int a_BlockZ, cFurnaceCallback a_Callback);  // Lua-accessible
 
+	/** Calls the callback for the hopper at the specified coords; returns false if there's no hopper at those coords or callback returns true, returns true if found */
+	bool DoWithHopperAt(int a_BlockX, int a_BlockY, int a_BlockZ, cHopperCallback a_Callback);  // Lua-accessible
+
 	/** Calls the callback for the noteblock at the specified coords; returns false if there's no noteblock at those coords or callback returns true, returns true if found */
 	bool DoWithNoteBlockAt(int a_BlockX, int a_BlockY, int a_BlockZ, cNoteBlockCallback a_Callback);
 
@@ -369,12 +375,12 @@ public:
 		m_IsSaving = false;
 	}
 
-	/** Sets the blockticking to start at the specified block. Only one blocktick may be set, second call overwrites the first call */
-	inline void SetNextBlockTick(int a_RelX, int a_RelY, int a_RelZ)
+	/** Causes the specified block to be ticked on the next Tick() call.
+	Plugins can use this via the cWorld:SetNextBlockToTick() API.
+	Only one block coord per chunk may be set, a second call overwrites the first call */
+	inline void SetNextBlockToTick(const Vector3i a_RelPos)
 	{
-		m_BlockTickX = a_RelX;
-		m_BlockTickY = a_RelY;
-		m_BlockTickZ = a_RelZ;
+		m_BlockToTick = a_RelPos;
 	}
 
 	inline NIBBLETYPE GetMeta(int a_RelX, int a_RelY, int a_RelZ) const
@@ -566,7 +572,7 @@ public:
 
 	/** Converts the coord relative to this chunk into an absolute coord.
 	Doesn't check relative coord validity. */
-	Vector3i RelativeToAbsolute(Vector3i a_RelBlockPosition)
+	Vector3i RelativeToAbsolute(Vector3i a_RelBlockPosition) const
 	{
 		return cChunkDef::RelativeToAbsolute(a_RelBlockPosition, {m_PosX, m_PosZ});
 	}
@@ -623,7 +629,9 @@ private:
 	cChunkDef::HeightMap m_HeightMap;
 	cChunkDef::BiomeMap  m_BiomeMap;
 
-	int m_BlockTickX, m_BlockTickY, m_BlockTickZ;
+	/** Relative coords of the block to tick first in the next Tick() call.
+	Plugins can use this to force a tick in a specific block, using cWorld:SetNextBlockToTick() API. */
+	Vector3i m_BlockToTick;
 
 	cChunk * m_NeighborXM;  // Neighbor at [X - 1, Z]
 	cChunk * m_NeighborXP;  // Neighbor at [X + 1, Z]
@@ -649,10 +657,10 @@ private:
 	void GetThreeRandomNumbers(int & a_X, int & a_Y, int & a_Z, int a_MaxX, int a_MaxY, int a_MaxZ);
 
 	void RemoveBlockEntity(cBlockEntity * a_BlockEntity);
-	void AddBlockEntity   (cBlockEntity * a_BlockEntity);
+	void AddBlockEntity   (OwnedBlockEntity a_BlockEntity);
 
 	/** Add a block entity to the chunk without marking the chunk dirty */
-	void AddBlockEntityClean(cBlockEntity * a_BlockEntity);
+	void AddBlockEntityClean(OwnedBlockEntity a_BlockEntity);
 
 	/** Creates a block entity for each block that needs a block entity and doesn't have one already */
 	void CreateBlockEntities(void);
@@ -683,6 +691,9 @@ private:
 
 	/** Called by Tick() when an entity moves out of this chunk into a neighbor; moves the entity and sends spawn / despawn packet to clients */
 	void MoveEntityToNewChunk(OwnedEntity a_Entity);
+
+	/** Check m_Entities for cPlayer objects. */
+	bool HasPlayerEntities();
 };
 
 typedef cChunk * cChunkPtr;

@@ -101,6 +101,7 @@ AString cPacketizer::PacketTypeToStr(cProtocol::ePacketType a_PacketType)
 		case cProtocol::pktPlayerMoveLook:        return "pktPlayerMoveLook";
 		case cProtocol::pktPluginMessage:         return "pktPluginMessage";
 		case cProtocol::pktRemoveEntityEffect:    return "pktRemoveEntityEffect";
+		case cProtocol::pktResourcePack:          return "pktResourcePack";
 		case cProtocol::pktRespawn:               return "pktRespawn";
 		case cProtocol::pktScoreboardObjective:   return "pktScoreboardObjective";
 		case cProtocol::pktSpawnObject:           return "pktSpawnObject";
@@ -120,6 +121,7 @@ AString cPacketizer::PacketTypeToStr(cProtocol::ePacketType a_PacketType)
 		case cProtocol::pktTimeUpdate:            return "pktTimeUpdate";
 		case cProtocol::pktTitle:                 return "pktTitle";
 		case cProtocol::pktUnloadChunk:           return "pktUnloadChunk";
+		case cProtocol::pktUnlockRecipe:          return "pktUnlockRecipe";
 		case cProtocol::pktUpdateBlockEntity:     return "pktUpdateBlockEntity";
 		case cProtocol::pktUpdateHealth:          return "pktUpdateHealth";
 		case cProtocol::pktUpdateScore:           return "pktUpdateScore";
@@ -133,7 +135,3 @@ AString cPacketizer::PacketTypeToStr(cProtocol::ePacketType a_PacketType)
 	}
 	return Printf("Unknown packet type: 0x%02x", a_PacketType);
 }
-
-
-
-

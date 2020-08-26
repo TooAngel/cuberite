@@ -3138,12 +3138,12 @@ local Hash = cCryptoHash.sha1HexString("DataToHash")
 					Params =
 					{
 						{
-							Name = "ShouldBroadcast",
+							Name = "ShouldBroadcast <b>(DEPRECATED)</b>",
 							Type = "boolean",
 							IsOptional = true,
 						},
 					},
-					Notes = "Schedules the entity to be destroyed; if ShouldBroadcast is not present or set to true, broadcasts the DestroyEntity packet",
+					Notes = "Schedules the entity to be destroyed; broadcasts the DestroyEntity packet",
 				},
 				DoesPreventBlockPlacement =
 				{
@@ -3189,6 +3189,16 @@ local Hash = cCryptoHash.sha1HexString("DataToHash")
 						},
 					},
 					Notes = "Returns the number of hitpoints out of RawDamage that the currently equipped armor would cover. See {{TakeDamageInfo}} for more information on attack damage.",
+				},
+				GetBoundingBox =
+				{
+					Returns =
+					{
+						{
+							Type = "cBoundingBox",
+						},
+					},
+					Notes = "Returns the bounding box of the entity, which has width and height corresponding to the entity, and is aligned with the block grid.",
 				},
 				GetChunkX =
 				{
@@ -3654,6 +3664,16 @@ local Hash = cCryptoHash.sha1HexString("DataToHash")
 					},
 					Notes = "Returns true if the entity class is a descendant of the specified class name, or the specified class itself",
 				},
+				IsArrow =
+				{
+					Returns =
+					{
+						{
+							Type = "boolean",
+						},
+					},
+					Notes = "Returns true if the entity is an arrow.",
+				},
 				IsBoat =
 				{
 					Returns =
@@ -4097,7 +4117,7 @@ local Hash = cCryptoHash.sha1HexString("DataToHash")
 							IsOptional  = true,
 						},
 					},
-					Notes = "Schedules a MoveToWorld call to occur on the next Tick of the entity. If ShouldSetPortalCooldown is false (default), doesn't set any portal cooldown, if it is true, the default portal cooldown is applied to the entity. If ShouldSendRespawn is false (default), no respawn packet is sent, if it is true then a respawn packet is sent to the client. <b>OBSOLETE</b>, use MoveToWorld instead.",
+					Notes = "Schedules a MoveToWorld call to occur on the next Tick of the entity. If ShouldSetPortalCooldown is false (default), doesn't set any portal cooldown, if it is true, the default portal cooldown is applied to the entity. If ShouldSendRespawn is false, no respawn packet is sent, if it is true (default) then a respawn packet is sent to the client. <b>OBSOLETE</b>, use MoveToWorld instead.",
 				},
 				SetGravity =
 				{
@@ -6223,7 +6243,7 @@ These ItemGrids are available in the API and can be manipulated by the plugins, 
 							Type = "number",
 						},
 					},
-					Notes = "Adds an item to the storage; if AllowNewStacks is true (default), will also create new stacks in empty slots. Returns the number of items added",
+					Notes = "Adds an item to the storage; if AllowNewStacks is true (default), will also create new stacks in empty slots. Fills existing stacks first and fills the hotbar before the main inventory. Returns the number of items added",
 				},
 				AddItems =
 				{
@@ -6324,6 +6344,23 @@ These ItemGrids are available in the API and can be manipulated by the plugins, 
 						},
 					},
 					Notes = "Adds the specified damage (1 by default) to the specified item. Removes the item and returns true if the item reached its max damage and was destroyed.",
+				},
+				FindItem =
+				{
+					Params =
+					{
+						{
+							Name = "RecipeItem",
+							Type = "cItem",
+						},
+					},
+					Returns =
+					{
+						{
+							Type = "cItem",
+						},
+					},
+					Notes = "Finds an item in the shield, hotbar and inventory slots matching `ItemType` and `ItemDamage`. The actual item is returned, if none is found `nullptr`. This can be used to validate that the player has a specific type of item.",
 				},
 				GetArmorGrid =
 				{
@@ -6617,6 +6654,28 @@ These ItemGrids are available in the API and can be manipulated by the plugins, 
 					},
 					Notes = "Removes one item from the hotbar's currently selected slot. Returns true on success.",
 				},
+				ReplaceOneEquippedItem =
+				{
+					Params =
+					{
+						{
+							Name = "Item",
+							Type = "cItem",
+						},
+						{
+							Name = "TryOtherSlots",
+							Type = "boolean",
+							IsOptional = true,
+						},
+					},
+					Returns =
+					{
+						{
+							Type = "number",
+						},
+					},
+					Notes = "Removes one item from the the current equipped item stack, and attempts to add the specified item stack back to the same slot. If it is not possible to place the item in the same slot, optionally (default true) tries to place the specified item elsewhere in the inventory. Returns the number of items successfully added. If the currently equipped slot is empty, its contents are simply set to the given Item.",
+				},
 				SendEquippedSlot =
 				{
 					Notes = "Sends the equipped item slot to the client",
@@ -6662,17 +6721,6 @@ These ItemGrids are available in the API and can be manipulated by the plugins, 
 					},
 					Notes = "Sets the specified hotbar slot contents",
 				},
-				SetShieldSlot =
-				{
-					Params =
-					{
-						{
-							Name = "Item",
-							Type = "cItem",
-						},
-					},
-					Notes = "Sets the shield slot content",
-				},
 				SetInventorySlot =
 				{
 					Params =
@@ -6688,6 +6736,17 @@ These ItemGrids are available in the API and can be manipulated by the plugins, 
 					},
 					Notes = "Sets the specified main inventory slot contents",
 				},
+				SetShieldSlot =
+				{
+					Params =
+					{
+						{
+							Name = "Item",
+							Type = "cItem",
+						},
+					},
+					Notes = "Sets the shield slot content",
+				},
 				SetSlot =
 				{
 					Params =
@@ -6702,6 +6761,17 @@ These ItemGrids are available in the API and can be manipulated by the plugins, 
 						},
 					},
 					Notes = "Sets the specified slot contents",
+				},
+				SetEquippedItem =
+				{
+					Params =
+					{
+						{
+							Name = "Item",
+							Type = "cItem",
+						},
+					},
+					Notes = "Sets current item in the equipped hotbar slot",
 				},
 			},
 			Constants =
@@ -7442,6 +7512,23 @@ This class represents a 2D array of items. It is used as the underlying storage 
 						},
 						Notes = "Destroys the item in the specified slot",
 					},
+				},
+				FindItem =
+				{
+					Params =
+					{
+						{
+							Name = "RecipeItem",
+							Type = "cItem",
+						},
+					},
+					Returns =
+					{
+						{
+							Type = "cItem",
+						},
+					},
+					Notes = "Finds an item within the grid matching `ItemType` and `ItemDamage`. The actual item is returned, if none is found `nullptr`.",
 				},
 				GetFirstEmptySlot =
 				{
@@ -9149,126 +9236,6 @@ a_Player:OpenWindow(Window);
 				{
 					Notes = "Family: water (squid)",
 				},
-				mtBat =
-				{
-					Notes = "",
-				},
-				mtBlaze =
-				{
-					Notes = "",
-				},
-				mtCaveSpider =
-				{
-					Notes = "",
-				},
-				mtChicken =
-				{
-					Notes = "",
-				},
-				mtCow =
-				{
-					Notes = "",
-				},
-				mtCreeper =
-				{
-					Notes = "",
-				},
-				mtEnderDragon =
-				{
-					Notes = "",
-				},
-				mtEnderman =
-				{
-					Notes = "",
-				},
-				mtGhast =
-				{
-					Notes = "",
-				},
-				mtGiant =
-				{
-					Notes = "",
-				},
-				mtHorse =
-				{
-					Notes = "",
-				},
-				mtInvalidType =
-				{
-					Notes = "Invalid monster type. Returned when monster type not recognized",
-				},
-				mtIronGolem =
-				{
-					Notes = "",
-				},
-				mtMagmaCube =
-				{
-					Notes = "",
-				},
-				mtMooshroom =
-				{
-					Notes = "",
-				},
-				mtOcelot =
-				{
-					Notes = "",
-				},
-				mtPig =
-				{
-					Notes = "",
-				},
-				mtSheep =
-				{
-					Notes = "",
-				},
-				mtSilverfish =
-				{
-					Notes = "",
-				},
-				mtSkeleton =
-				{
-					Notes = "",
-				},
-				mtSlime =
-				{
-					Notes = "",
-				},
-				mtSnowGolem =
-				{
-					Notes = "",
-				},
-				mtSpider =
-				{
-					Notes = "",
-				},
-				mtSquid =
-				{
-					Notes = "",
-				},
-				mtVillager =
-				{
-					Notes = "",
-				},
-				mtWitch =
-				{
-					Notes = "",
-				},
-				mtWither =
-				{
-					Notes = "",
-				},
-				mtWolf =
-				{
-					Notes = "",
-				},
-				mtZombie =
-				{
-					Notes = "",
-				},
-				mtZombiePigman =
-				{
-					Notes = "",
-				},
 			},
 			ConstantGroups =
 			{
@@ -10712,6 +10679,17 @@ a_Player:OpenWindow(Window);
 					},
 					Notes = "Places a block while impersonating the player. The {{OnPlayerPlacingBlock|HOOK_PLAYER_PLACING_BLOCK}} hook is called before the placement, and if it succeeds, the block is placed and the {{OnPlayerPlacedBlock|HOOK_PLAYER_PLACED_BLOCK}} hook is called. Returns true iff the block is successfully placed. Assumes that the block is in a currently loaded chunk.",
 				},
+				ReplaceOneEquippedItemTossRest =
+				{
+					Params =
+					{
+						{
+							Name = "Item",
+							Type = "cItem",
+						},
+					},
+					Notes = "Removes one item from the the current equipped item stack, and attempts to add the specified item stack back to the same slot. If it is not possible to place the item in the same slot, tries to place the specified item elsewhere in the inventory. If this is not possible, then any remaining items are tossed. If the currently equipped slot is empty, its contents are simply set to the given Item.",
+				},
 				Respawn =
 				{
 					Notes = "Restores the health, extinguishes fire, makes visible and sends the Respawn packet.",
@@ -11131,6 +11109,17 @@ a_Player:OpenWindow(Window);
 						},
 					},
 					Notes = "Sets the player visibility to other players",
+				},
+				SpectateEntity =
+				{
+					Params =
+					{
+						{
+							Name = "Target",
+							Type = "cEntity",
+						},
+					},
+					Notes = "Spectates the target entity. Does not change the player's gamemode to spectator mode. When called with self or nil as the target, resets the spectation.",
 				},
 				TossEquippedItem =
 				{
@@ -13279,46 +13268,74 @@ end
 			{
 				AddFaceDirection =
 				{
-					Params =
 					{
+						Params =
 						{
-							Name = "BlockX",
-							Type = "number",
+							{
+								Name = "BlockX",
+								Type = "number",
+							},
+							{
+								Name = "BlockY",
+								Type = "number",
+							},
+							{
+								Name = "BlockZ",
+								Type = "number",
+							},
+							{
+								Name = "BlockFace",
+								Type = "eBlockFace",
+							},
+							{
+								Name = "IsInverse",
+								Type = "boolean",
+								IsOptional = true,
+							},
 						},
+						Returns =
 						{
-							Name = "BlockY",
-							Type = "number",
+							{
+								Name = "BlockX",
+								Type = "number",
+							},
+							{
+								Name = "BlockY",
+								Type = "number",
+							},
+							{
+								Name = "BlockZ",
+								Type = "number",
+							},
 						},
-						{
-							Name = "BlockZ",
-							Type = "number",
-						},
-						{
-							Name = "BlockFace",
-							Type = "eBlockFace",
-						},
-						{
-							Name = "IsInverse",
-							Type = "boolean",
-							IsOptional = true,
-						},
+						Notes = "Returns the coords of a block adjacent to the specified block through the specified {{Globals#BlockFaces|face}}",
 					},
-					Returns =
 					{
+						Params =
 						{
-							Name = "BlockX",
-							Type = "number",
+							{
+								Name = "BlockPos",
+								Type = "Vector3i",
+							},
+							{
+								Name = "BlockFace",
+								Type = "eBlockFace",
+							},
+							{
+								Name = "IsInverse",
+								Type = "boolean",
+								IsOptional = true,
+							},
 						},
+						Returns =
 						{
-							Name = "BlockY",
-							Type = "number",
+							{
+								Name = "BlockPos",
+								Type = "Vector3i",
+							},
 						},
-						{
-							Name = "BlockZ",
-							Type = "number",
-						},
+						Notes = "Returns the coords of a block adjacent to the specified block through the specified {{Globals#BlockFaces|face}}",
 					},
-					Notes = "Returns the coords of a block adjacent to the specified block through the specified {{Globals#BlockFaces|face}}",
 				},
 				Base64Decode =
 				{
@@ -16631,6 +16648,30 @@ end
 				{
 					Notes = "A flag in the metadata of heads that indicates that the head is a zombie head.",
 				},
+				E_META_REDSTONE_REPEATER_FACING_ZM =
+				{
+					Notes = "A flag in the metadata of redstone repeaters that indicates that the repeater is looking in the negative Z direction.",
+				},
+				E_META_REDSTONE_REPEATER_FACING_XP =
+				{
+					Notes = "A flag in the metadata of redstone repeaters that indicates that the repeater is looking in the positive X direction.",
+				},
+				E_META_REDSTONE_REPEATER_FACING_ZP =
+				{
+					Notes = "A flag in the metadata of redstone repeaters that indicates that the repeater is looking in the positive Z direction.",
+				},
+				E_META_REDSTONE_REPEATER_FACING_XM =
+				{
+					Notes = "A flag in the metadata of redstone repeaters that indicates that the repeater is looking in the negative X direction.",
+				},
+				E_META_REDSTONE_REPEATER_FACING_MASK =
+				{
+					Notes = "A mask that indicates the bits of the metadata that specify the facing of redstone repeaters.",
+				},
+				E_META_SPAWN_EGG_WITHER_SKELETON =
+				{
+					Notes = ""
+				},
 				E_META_SPONGE_DRY =
 				{
 					Notes = "A flag in the metadata of sponges that indicates that the sponge is dry.",
@@ -16675,6 +16716,138 @@ end
 				{
 					Notes = "A wither skull explosion. The SourceData param is the {{cWitherSkullEntity|wither skull entity}} object.",
 				},
+
+				-- eMonsterType:
+				mtBat =
+				{
+					Notes = "",
+				},
+				mtBlaze =
+				{
+					Notes = "",
+				},
+				mtCaveSpider =
+				{
+					Notes = "",
+				},
+				mtChicken =
+				{
+					Notes = "",
+				},
+				mtCow =
+				{
+					Notes = "",
+				},
+				mtCreeper =
+				{
+					Notes = "",
+				},
+				mtEnderDragon =
+				{
+					Notes = "",
+				},
+				mtEnderman =
+				{
+					Notes = "",
+				},
+				mtGhast =
+				{
+					Notes = "",
+				},
+				mtGiant =
+				{
+					Notes = "",
+				},
+				mtHorse =
+				{
+					Notes = "",
+				},
+				mtInvalidType =
+				{
+					Notes = "Invalid monster type. Returned when monster type not recognized",
+				},
+				mtIronGolem =
+				{
+					Notes = "",
+				},
+				mtMagmaCube =
+				{
+					Notes = "",
+				},
+				mtMooshroom =
+				{
+					Notes = "",
+				},
+				mtOcelot =
+				{
+					Notes = "",
+				},
+				mtPig =
+				{
+					Notes = "",
+				},
+				mtSheep =
+				{
+					Notes = "",
+				},
+				mtSilverfish =
+				{
+					Notes = "",
+				},
+				mtSkeleton =
+				{
+					Notes = "",
+				},
+				mtSlime =
+				{
+					Notes = "",
+				},
+				mtSnowGolem =
+				{
+					Notes = "",
+				},
+				mtSpider =
+				{
+					Notes = "",
+				},
+				mtSquid =
+				{
+					Notes = "",
+				},
+				mtVillager =
+				{
+					Notes = "",
+				},
+				mtWitch =
+				{
+					Notes = "",
+				},
+				mtWither =
+				{
+					Notes = "",
+				},
+				mtWitherSkeleton =
+				{
+					Notes = "",
+				},
+				mtWolf =
+				{
+					Notes = "",
+				},
+				mtZombie =
+				{
+					Notes = "",
+				},
+				mtZombiePigman =
+				{
+					Notes = "",
+				},
+				mtZombieVillager =
+				{
+					Notes = "",
+				},
+
+				-- eMessageType:
 				mtCustom =
 				{
 					Notes = "Send raw data without any processing",
@@ -16734,6 +16907,10 @@ end
 				mtWarning =
 				{
 					Notes = "Something concerning (i.e. reload) is about to happen",
+				},
+				mtWitherSkeleton =
+				{
+					Notes = ""
 				},
 				hMain =
 				{
@@ -16994,9 +17171,11 @@ end
 						"mtVillager",
 						"mtWitch",
 						"mtWither",
+						"mtWitherSkeleton",
 						"mtWolf",
 						"mtZombie",
 						"mtZombiePigman",
+						"mtZombieVillager",
 						"mtMax",
 					},
 					TextBefore = [[

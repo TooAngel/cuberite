@@ -2,6 +2,7 @@
 #include "Globals.h"  // NOTE: MSVC stupidness requires this to be the same across all modules
 
 #include "ChunkMap.h"
+#include "BlockInfo.h"
 #include "World.h"
 #include "Root.h"
 #include "Entities/Player.h"
@@ -639,7 +640,9 @@ void cChunkMap::SetBlock(Vector3i a_BlockPos, BLOCKTYPE a_BlockType, NIBBLETYPE 
 		NIBBLETYPE blockMeta;
 		GetBlockTypeMeta(a_BlockPos, blockType, blockMeta);
 		cChunkInterface ChunkInterface(this);
+
 		BlockHandler(blockType)->OnBroken(ChunkInterface, *m_World, a_BlockPos, blockType, blockMeta);
+
 		chunk->SetBlock(relPos, a_BlockType, a_BlockMeta);
 		m_World->GetSimulatorManager()->WakeUp(a_BlockPos, chunk);
 		BlockHandler(a_BlockType)->OnPlaced(ChunkInterface, *m_World, a_BlockPos, a_BlockType, a_BlockMeta);
@@ -1199,7 +1202,7 @@ void cChunkMap::DoExplosionAt(double a_ExplosionSize, double a_BlockX, double a_
 						{
 							// Activate the TNT, with a random fuse between 10 to 30 game ticks
 							int FuseTime = GetRandomProvider().RandInt(10, 30);
-							m_World->SpawnPrimedTNT({a_BlockX + x + 0.5, a_BlockY + y + 0.5, a_BlockZ + z + 0.5}, FuseTime);
+							m_World->SpawnPrimedTNT({a_BlockX + x + 0.5, a_BlockY + y + 0.5, a_BlockZ + z + 0.5}, FuseTime, 1, false);  // Initial velocity, no fuse sound
 							area.SetBlockTypeMeta(bx + x, by + y, bz + z, E_BLOCK_AIR, 0);
 							a_BlocksAffected.push_back(Vector3i(bx + x, by + y, bz + z));
 							break;
@@ -1295,31 +1298,31 @@ void cChunkMap::DoExplosionAt(double a_ExplosionSize, double a_BlockX, double a_
 
 			if (!a_Entity.IsTNT() && !a_Entity.IsFallingBlock())  // Don't apply damage to other TNT entities and falling blocks, they should be invincible
 			{
-				cBoundingBox bbEntity(a_Entity.GetPosition(), a_Entity.GetWidth() / 2, a_Entity.GetHeight());
-
-				if (!bbTNT.IsInside(bbEntity))  // If bbEntity is inside bbTNT, not vice versa!
+				auto EntityBox = a_Entity.GetBoundingBox();
+				if (!bbTNT.IsInside(EntityBox))  // If entity box is inside tnt box, not vice versa!
 				{
 					return false;
 				}
 
 				// Ensure that the damage dealt is inversely proportional to the distance to the TNT centre - the closer a player is, the harder they are hit
-				a_Entity.TakeDamage(dtExplosion, nullptr, static_cast<int>((1 / DistanceFromExplosion.Length()) * 6 * ExplosionSizeInt), 0);
+				a_Entity.TakeDamage(dtExplosion, nullptr, static_cast<int>((1 / std::max(1.0, DistanceFromExplosion.Length())) * 8 * ExplosionSizeInt), 0);
 			}
 
-			double Length = DistanceFromExplosion.Length();
-			if (Length <= ExplosionSizeInt)  // Entity is impacted by explosion
+			float EntityExposure = a_Entity.GetExplosionExposureRate(ExplosionPos, static_cast<float>(a_ExplosionSize));
+
+			// Exposure reduced by armor
+			EntityExposure = EntityExposure * (1.0f - a_Entity.GetEnchantmentBlastKnockbackReduction());
+
+			auto Impact = std::pow(std::max(0.2, DistanceFromExplosion.Length()), -1);
+			Impact *= EntityExposure * ExplosionSizeInt * 6.0;
+
+			if (Impact > 0.0)
 			{
-				float EntityExposure = a_Entity.GetExplosionExposureRate(ExplosionPos, static_cast<float>(a_ExplosionSize));
-
-				// Exposure reduced by armor
-				EntityExposure = EntityExposure * (1.0f - a_Entity.GetEnchantmentBlastKnockbackReduction());
-
-				double Impact = (1 - ((Length / ExplosionSizeInt) / 2)) * EntityExposure;
-
 				DistanceFromExplosion.Normalize();
-				DistanceFromExplosion *= Impact;
+				DistanceFromExplosion *= Vector3d{Impact, 0.0, Impact};
+				DistanceFromExplosion.y += 0.3 * Impact;
 
-				a_Entity.AddSpeed(DistanceFromExplosion);
+				a_Entity.SetSpeed(DistanceFromExplosion);
 			}
 
 			return false;
@@ -1616,6 +1619,24 @@ bool cChunkMap::DoWithFurnaceAt(int a_BlockX, int a_BlockY, int a_BlockZ, cFurna
 		return false;
 	}
 	return Chunk->DoWithFurnaceAt(a_BlockX, a_BlockY, a_BlockZ, a_Callback);
+}
+
+
+
+
+
+bool cChunkMap::DoWithHopperAt(int a_BlockX, int a_BlockY, int a_BlockZ, cHopperCallback a_Callback)
+{
+	int ChunkX, ChunkZ;
+	int BlockX = a_BlockX, BlockY = a_BlockY, BlockZ = a_BlockZ;
+	cChunkDef::AbsoluteToRelative(BlockX, BlockY, BlockZ, ChunkX, ChunkZ);
+	cCSLock Lock(m_CSChunks);
+	cChunkPtr Chunk = GetChunkNoGen(ChunkX, ChunkZ);
+	if ((Chunk == nullptr) || !Chunk->IsValid())
+	{
+		return false;
+	}
+	return Chunk->DoWithHopperAt(a_BlockX, a_BlockY, a_BlockZ, a_Callback);
 }
 
 
@@ -2008,16 +2029,16 @@ int cChunkMap::GrowPlantAt(Vector3i a_BlockPos, int a_NumStages)
 
 
 
-void cChunkMap::SetNextBlockTick(int a_BlockX, int a_BlockY, int a_BlockZ)
+void cChunkMap::SetNextBlockToTick(const Vector3i a_BlockPos)
 {
-	int ChunkX, ChunkZ;
-	cChunkDef::AbsoluteToRelative(a_BlockX, a_BlockY, a_BlockZ, ChunkX, ChunkZ);
+	auto ChunkPos = cChunkDef::BlockToChunk(a_BlockPos);
+	auto RelPos = cChunkDef::AbsoluteToRelative(a_BlockPos, ChunkPos);
 
 	cCSLock Lock(m_CSChunks);
-	cChunkPtr Chunk = GetChunkNoLoad(ChunkX, ChunkZ);
+	auto Chunk = GetChunkNoLoad(ChunkPos);
 	if (Chunk != nullptr)
 	{
-		Chunk->SetNextBlockTick(a_BlockX, a_BlockY, a_BlockZ);
+		Chunk->SetNextBlockToTick(RelPos);
 	}
 }
 
@@ -2078,17 +2099,17 @@ void cChunkMap::Tick(std::chrono::milliseconds a_Dt)
 
 
 
-void cChunkMap::TickBlock(int a_BlockX, int a_BlockY, int a_BlockZ)
+void cChunkMap::TickBlock(const Vector3i a_BlockPos)
 {
+	auto ChunkPos = cChunkDef::BlockToChunk(a_BlockPos);
+	auto RelPos = cChunkDef::AbsoluteToRelative(a_BlockPos, ChunkPos);
 	cCSLock Lock(m_CSChunks);
-	int ChunkX, ChunkZ;
-	cChunkDef::AbsoluteToRelative(a_BlockX, a_BlockY, a_BlockZ, ChunkX, ChunkZ);
-	cChunkPtr Chunk = GetChunkNoLoad(ChunkX, ChunkZ);
+	auto Chunk = GetChunkNoLoad(ChunkPos);
 	if ((Chunk == nullptr) || !Chunk->IsValid())
 	{
 		return;
 	}
-	Chunk->TickBlock(a_BlockX, a_BlockY, a_BlockZ);
+	Chunk->TickBlock(RelPos);
 }
 
 
@@ -2290,8 +2311,3 @@ void cChunkMap::DelChunkStay(cChunkStay & a_ChunkStay)
 	}  // for itr - Chunks[]
 	a_ChunkStay.OnDisabled();
 }
-
-
-
-
-

@@ -9,7 +9,7 @@
 #include "../World.h"
 #include "../Entities/Player.h"
 #include "LuaState.h"
-#include "../Tracer.h"
+#include "../BlockInfo.h"
 
 
 
@@ -469,47 +469,6 @@ static int tolua_set_cItem_m_Lore(lua_State * tolua_S)
 
 
 
-/* method: Trace of class  cTracer */
-static int tolua_cTracer_Trace(lua_State * a_LuaState)
-{
-	// Log a deprecation warning with stacktrace:
-	cLuaState S(a_LuaState);
-	LOGWARNING("The function cTracer:Trace is obsolete, use the cLineBlockTracer instead");
-	S.LogStackTrace();
-
-	// Check params:
-	if (
-		!S.CheckParamUserType(1, "cTracer") ||
-		!S.CheckParamUserType(2, "const Vector3<float>", 3) ||
-		!S.CheckParamNumber  (4)
-	)
-	{
-		return 0;
-	}
-
-	// Read params:
-	cTracer * self;
-	Vector3d * start;
-	Vector3d * direction;
-	int distance;
-	bool lineOfSight = false;
-	if (!S.GetStackValues(1, self, start, direction, distance))
-	{
-		LOGWARNING("Cannot retrieve parameters for cTracer::Trace. Expected a cTracer (self), Vector3d, Vector3d, number and optional boolean.");
-		S.LogStackValues();
-		return 0;
-	}
-	S.GetStackValue(5, lineOfSight);
-
-	// Call and push the result:
-	S.Push(self->Trace(*start, *direction, distance, lineOfSight));
-	return 1;
-}
-
-
-
-
-
 /** function: cWorld:SetSignLines */
 static int tolua_cWorld_SetSignLines(lua_State * tolua_S)
 {
@@ -559,43 +518,37 @@ static int tolua_cWorld_SetSignLines(lua_State * tolua_S)
 
 
 
-template <typename T>
-int tolua_Vector3_Abs(lua_State * a_LuaState)
+/** function: cWorld:SetNextBlockTick */
+static int tolua_cWorld_SetNextBlockTick(lua_State * tolua_S)
 {
-	// Retrieve the params, including self:
-	cLuaState L(a_LuaState);
-	Vector3<T> * self;
-	if (!L.GetStackValues(1, self))
+	cLuaState LuaState(tolua_S);
+
+	if (
+		!LuaState.CheckParamUserType(1, "cWorld") ||
+		!LuaState.CheckParamNumber(2, 4) ||
+		!LuaState.CheckParamEnd(5)
+	)
 	{
-		tolua_error(a_LuaState, "invalid 'self' in function 'Vector3<T>:Abs'", nullptr);
 		return 0;
 	}
 
-	// Absolutize the vector:
-	self->Abs();
-	return 0;
-}
+	cWorld * Self = nullptr;
+	int BlockX = 0;
+	int BlockY = 0;
+	int BlockZ = 0;
 
-
-
-
-
-template <typename T>
-int tolua_Vector3_Clamp(lua_State * a_LuaState)
-{
-	// Retrieve the params, including self:
-	cLuaState L(a_LuaState);
-	Vector3<T> * self;
-	T min, max;
-	if (!L.GetStackValues(1, self, min, max))
+	if (!LuaState.GetStackValues(1, Self, BlockX, BlockY, BlockZ))
 	{
-		tolua_error(a_LuaState, "invalid parameters for function 'Vector3<T>:Clamp', expected a Vector3 and two numbers", nullptr);
-		return 0;
+		tolua_error(LuaState, "Failed to read parameters", nullptr);
 	}
-
-	// Clamp the vector:
-	self->Clamp(min, max);
-	return 0;
+	if (Self == nullptr)
+	{
+		tolua_error(LuaState, "invalid 'self' in function 'SetNextBlockTick'", nullptr);
+	}
+	Self->SetNextBlockToTick({BlockX, BlockY, BlockZ});
+	LOGWARNING("Warning: 'cWorld:SetNextBlockTick' function is deprecated. Please use 'cWorld:SetNextBlockToTick' instead.");
+	LuaState.LogStackTrace(0);
+	return 1;
 }
 
 
@@ -641,27 +594,9 @@ void DeprecatedBindings::Bind(lua_State * tolua_S)
 		tolua_variable(tolua_S, "m_Lore", tolua_get_cItem_m_Lore, tolua_set_cItem_m_Lore);
 	tolua_endmodule(tolua_S);
 
-	tolua_beginmodule(tolua_S, "cTracer");
-		tolua_function(tolua_S, "Trace", tolua_cTracer_Trace);
-	tolua_endmodule(tolua_S);
-
 	tolua_beginmodule(tolua_S, "cWorld");
+		tolua_function(tolua_S, "SetNextBlockTick", tolua_cWorld_SetNextBlockTick);
 		tolua_function(tolua_S, "UpdateSign", tolua_cWorld_SetSignLines);
-	tolua_endmodule(tolua_S);
-
-	tolua_beginmodule(tolua_S, "Vector3i");
-		tolua_function(tolua_S,"abs",   tolua_Vector3_Abs<int>);
-		tolua_function(tolua_S,"clamp", tolua_Vector3_Clamp<int>);
-	tolua_endmodule(tolua_S);
-
-	tolua_beginmodule(tolua_S, "Vector3f");
-		tolua_function(tolua_S,"abs",   tolua_Vector3_Abs<float>);
-		tolua_function(tolua_S,"clamp", tolua_Vector3_Clamp<float>);
-	tolua_endmodule(tolua_S);
-
-	tolua_beginmodule(tolua_S, "Vector3d");
-		tolua_function(tolua_S,"abs",   tolua_Vector3_Abs<double>);
-		tolua_function(tolua_S,"clamp", tolua_Vector3_Clamp<double>);
 	tolua_endmodule(tolua_S);
 
 	tolua_endmodule(tolua_S);

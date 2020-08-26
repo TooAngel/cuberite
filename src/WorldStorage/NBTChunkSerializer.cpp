@@ -322,7 +322,7 @@ public:
 
 				if ((a_Item.m_ItemType == E_ITEM_FIREWORK_ROCKET) || (a_Item.m_ItemType == E_ITEM_FIREWORK_STAR))
 				{
-					cFireworkItem::WriteToNBTCompound(a_Item.m_FireworkItem, mWriter, static_cast<ENUM_ITEM_ID>(a_Item.m_ItemType));
+					cFireworkItem::WriteToNBTCompound(a_Item.m_FireworkItem, mWriter, static_cast<ENUM_ITEM_TYPE>(a_Item.m_ItemType));
 				}
 
 				if (!a_Item.m_Enchantments.IsEmpty())
@@ -710,37 +710,39 @@ public:
 		const char * EntityClass = nullptr;
 		switch (a_Monster->GetMobType())
 		{
-			case mtBat:           EntityClass = "Bat";            break;
-			case mtBlaze:         EntityClass = "Blaze";          break;
-			case mtCaveSpider:    EntityClass = "CaveSpider";     break;
-			case mtChicken:       EntityClass = "Chicken";        break;
-			case mtCow:           EntityClass = "Cow";            break;
-			case mtCreeper:       EntityClass = "Creeper";        break;
-			case mtEnderDragon:   EntityClass = "EnderDragon";    break;
-			case mtEnderman:      EntityClass = "Enderman";       break;
-			case mtGhast:         EntityClass = "Ghast";          break;
-			case mtGiant:         EntityClass = "Giant";          break;
-			case mtGuardian:      EntityClass = "Guardian";       break;
-			case mtHorse:         EntityClass = "Horse";          break;
-			case mtIronGolem:     EntityClass = "VillagerGolem";  break;
-			case mtMagmaCube:     EntityClass = "LavaSlime";      break;
-			case mtMooshroom:     EntityClass = "MushroomCow";    break;
-			case mtOcelot:        EntityClass = "Ozelot";         break;
-			case mtPig:           EntityClass = "Pig";            break;
-			case mtRabbit:        EntityClass = "Rabbit";         break;
-			case mtSheep:         EntityClass = "Sheep";          break;
-			case mtSilverfish:    EntityClass = "Silverfish";     break;
-			case mtSkeleton:      EntityClass = "Skeleton";       break;
-			case mtSlime:         EntityClass = "Slime";          break;
-			case mtSnowGolem:     EntityClass = "SnowMan";        break;
-			case mtSpider:        EntityClass = "Spider";         break;
-			case mtSquid:         EntityClass = "Squid";          break;
-			case mtVillager:      EntityClass = "Villager";       break;
-			case mtWitch:         EntityClass = "Witch";          break;
-			case mtWither:        EntityClass = "WitherBoss";     break;
-			case mtWolf:          EntityClass = "Wolf";           break;
-			case mtZombie:        EntityClass = "Zombie";         break;
-			case mtZombiePigman:  EntityClass = "PigZombie";      break;
+			case mtBat:            EntityClass = "Bat";            break;
+			case mtBlaze:          EntityClass = "Blaze";          break;
+			case mtCaveSpider:     EntityClass = "CaveSpider";     break;
+			case mtChicken:        EntityClass = "Chicken";        break;
+			case mtCow:            EntityClass = "Cow";            break;
+			case mtCreeper:        EntityClass = "Creeper";        break;
+			case mtEnderDragon:    EntityClass = "EnderDragon";    break;
+			case mtEnderman:       EntityClass = "Enderman";       break;
+			case mtGhast:          EntityClass = "Ghast";          break;
+			case mtGiant:          EntityClass = "Giant";          break;
+			case mtGuardian:       EntityClass = "Guardian";       break;
+			case mtHorse:          EntityClass = "Horse";          break;
+			case mtIronGolem:      EntityClass = "VillagerGolem";  break;
+			case mtMagmaCube:      EntityClass = "LavaSlime";      break;
+			case mtMooshroom:      EntityClass = "MushroomCow";    break;
+			case mtOcelot:         EntityClass = "Ozelot";         break;
+			case mtPig:            EntityClass = "Pig";            break;
+			case mtRabbit:         EntityClass = "Rabbit";         break;
+			case mtSheep:          EntityClass = "Sheep";          break;
+			case mtSilverfish:     EntityClass = "Silverfish";     break;
+			case mtSkeleton:       EntityClass = "Skeleton";       break;
+			case mtSlime:          EntityClass = "Slime";          break;
+			case mtSnowGolem:      EntityClass = "SnowMan";        break;
+			case mtSpider:         EntityClass = "Spider";         break;
+			case mtSquid:          EntityClass = "Squid";          break;
+			case mtVillager:       EntityClass = "Villager";       break;
+			case mtWitch:          EntityClass = "Witch";          break;
+			case mtWither:         EntityClass = "WitherBoss";     break;
+			case mtWitherSkeleton: EntityClass = "WitherSkeleton"; break;
+			case mtWolf:           EntityClass = "Wolf";           break;
+			case mtZombie:         EntityClass = "Zombie";         break;
+			case mtZombiePigman:   EntityClass = "PigZombie";      break;
+			case mtZombieVillager: EntityClass = "ZombieVillager"; break;
 			default:
 			{
 				ASSERT(!"Unhandled monster type");
@@ -869,11 +871,6 @@ public:
 					mWriter.AddInt("Size", static_cast<const cSlime *>(a_Monster)->GetSize());
 					break;
 				}
-				case mtSkeleton:
-				{
-					mWriter.AddByte("SkeletonType", (static_cast<const cSkeleton *>(a_Monster)->IsWither() ? 1 : 0));
-					break;
-				}
 				case mtVillager:
 				{
 					const cVillager *Villager = static_cast<const cVillager *>(a_Monster);
@@ -905,16 +902,20 @@ public:
 				}
 				case mtZombie:
 				{
-					const cZombie *Zombie = static_cast<const cZombie *>(a_Monster);
-					mWriter.AddByte("IsVillager",   Zombie->IsVillagerZombie() ? 1 : 0);
-					mWriter.AddByte("IsConverting", Zombie->IsConverting() ? 1 : 0);
-					mWriter.AddInt ("Age",          Zombie->GetAge());
+					mWriter.AddInt("Age", static_cast<const cZombie *>(a_Monster)->GetAge());
 					break;
 				}
 				case mtZombiePigman:
 				{
 					mWriter.AddInt("Age", static_cast<const cZombiePigman *>(a_Monster)->GetAge());
 					break;
+				}
+				case mtZombieVillager:
+				{
+					const cZombieVillager *ZombieVillager = reinterpret_cast<const cZombieVillager *>(a_Monster);
+					mWriter.AddInt("Profession",     ZombieVillager->GetProfession());
+					mWriter.AddInt("ConversionTime", ZombieVillager->ConversionTime());
+					mWriter.AddInt("Age",            ZombieVillager->GetAge());
 				}
 				case mtBlaze:
 				case mtCaveSpider:
@@ -927,10 +928,12 @@ public:
 				case mtIronGolem:
 				case mtMooshroom:
 				case mtSilverfish:
+				case mtSkeleton:
 				case mtSnowGolem:
 				case mtSpider:
 				case mtSquid:
 				case mtWitch:
+				case mtWitherSkeleton:
 				{
 					// Other mobs have no special tags.
 					break;

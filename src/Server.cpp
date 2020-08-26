@@ -76,7 +76,7 @@ public:
 // cServer::cTickThread:
 
 cServer::cTickThread::cTickThread(cServer & a_Server) :
-	super("ServerTickThread"),
+	Super("ServerTickThread"),
 	m_Server(a_Server)
 {
 }
@@ -170,8 +170,9 @@ bool cServer::InitServer(cSettingsRepositoryInterface & a_Settings, bool a_Shoul
 	m_MaxPlayers = static_cast<size_t>(a_Settings.GetValueSetI("Server", "MaxPlayers", 100));
 	m_bIsHardcore = a_Settings.GetValueSetB("Server", "HardcoreEnabled", false);
 	m_bAllowMultiLogin = a_Settings.GetValueSetB("Server", "AllowMultiLogin", false);
+	m_ResourcePackUrl = a_Settings.GetValueSet("Server", "ResourcePackUrl", "");
 
-	m_FaviconData = Base64Encode(cFile::ReadWholeFile(FILE_IO_PREFIX + AString("favicon.png")));  // Will return empty string if file nonexistant; client doesn't mind
+	m_FaviconData = Base64Encode(cFile::ReadWholeFile(AString("favicon.png")));  // Will return empty string if file nonexistant; client doesn't mind
 
 	if (m_bIsConnected)
 	{
@@ -288,10 +289,10 @@ const AStringMap & cServer::GetRegisteredForgeMods(const UInt32 a_Protocol)
 
 
 
-bool cServer::IsPlayerInQueue(AString a_Username)
+bool cServer::IsPlayerInQueue(const AString & a_Username)
 {
 	cCSLock Lock(m_CSClients);
-	for (auto client : m_Clients)
+	for (const auto & client : m_Clients)
 	{
 		if ((client->GetUsername()).compare(a_Username) == 0)
 		{
@@ -402,7 +403,7 @@ void cServer::TickClients(float a_Dt)
 
 bool cServer::Start(void)
 {
-	for (auto port: m_Ports)
+	for (const auto & port: m_Ports)
 	{
 		UInt16 PortNum;
 		if (!StringToInteger(port, PortNum))
@@ -421,11 +422,7 @@ bool cServer::Start(void)
 		LOGERROR("Couldn't open any ports. Aborting the server");
 		return false;
 	}
-	if (!m_TickThread.Start())
-	{
-		return false;
-	}
-	return true;
+	return m_TickThread.Start();
 }
 
 
@@ -434,7 +431,14 @@ bool cServer::Start(void)
 
 bool cServer::Command(cClientHandle & a_Client, AString & a_Cmd)
 {
-	return cRoot::Get()->GetPluginManager()->CallHookChat(*(a_Client.GetPlayer()), a_Cmd);
+	bool Res = cRoot::Get()->DoWithPlayerByUUID(
+		a_Client.GetUUID(),
+		[&](cPlayer & a_Player)
+		{
+			return cRoot::Get()->GetPluginManager()->CallHookChat(a_Player, a_Cmd);
+		}
+	);
+	return Res;
 }
 
 
@@ -628,7 +632,7 @@ void cServer::BindBuiltInConsoleCommands(void)
 void cServer::Shutdown(void)
 {
 	// Stop listening on all sockets:
-	for (auto srv: m_ServerHandles)
+	for (const auto & srv: m_ServerHandles)
 	{
 		srv->Close();
 	}

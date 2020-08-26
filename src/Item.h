@@ -37,17 +37,7 @@ class cItem
 {
 public:
 	/** Creates an empty item */
-	cItem(void) :
-		m_ItemType(E_ITEM_EMPTY),
-		m_ItemCount(0),
-		m_ItemDamage(0),
-		m_CustomName(""),
-		m_RepairCost(0),
-		m_FireworkItem(),
-		m_ItemColor()
-	{
-	}
-
+	cItem(void);
 
 	/** Creates an item of the specified type, by default 1 piece with no damage and no enchantments */
 	cItem(
@@ -57,27 +47,7 @@ public:
 		const AString & a_Enchantments = "",
 		const AString & a_CustomName = "",
 		const AStringVector & a_LoreTable = {}
-	) :
-		m_ItemType    (a_ItemType),
-		m_ItemCount   (a_ItemCount),
-		m_ItemDamage  (a_ItemDamage),
-		m_Enchantments(a_Enchantments),
-		m_CustomName  (a_CustomName),
-		m_LoreTable   (a_LoreTable),
-		m_RepairCost  (0),
-		m_FireworkItem(),
-		m_ItemColor()
-	{
-		if (!IsValidItem(m_ItemType))
-		{
-			if ((m_ItemType != E_BLOCK_AIR) && (m_ItemType != E_ITEM_EMPTY))
-			{
-				LOGWARNING("%s: creating an invalid item type (%d), resetting to empty.", __FUNCTION__, a_ItemType);
-			}
-			Empty();
-		}
-	}
-
+	);
 
 	// The constructor is disabled in code, because the compiler generates it anyway,
 	// but it needs to stay because ToLua needs to generate the binding for it
@@ -88,31 +58,14 @@ public:
 
 	#endif
 
+	/** Empties the item and frees up any dynamic storage used by the internals. */
+	void Empty(void);
 
-	void Empty(void)
-	{
-		m_ItemType = E_ITEM_EMPTY;
-		m_ItemCount = 0;
-		m_ItemDamage = 0;
-		m_Enchantments.Clear();
-		m_CustomName = "";
-		m_LoreTable.clear();
-		m_RepairCost = 0;
-		m_FireworkItem.EmptyData();
-		m_ItemColor.Clear();
-	}
+	/** Empties the item and frees up any dynamic storage used by the internals.
+	TODO: What is the usage difference? Merge with Empty()? */
+	void Clear(void);
 
-
-	void Clear(void)
-	{
-		m_ItemType = E_ITEM_EMPTY;
-		m_ItemCount = 0;
-		m_ItemDamage = 0;
-		m_RepairCost = 0;
-		m_ItemColor.Clear();
-	}
-
-
+	/** Returns true if the item represents an empty stack - either the type is invalid, or count is zero. */
 	bool IsEmpty(void) const
 	{
 		return ((m_ItemType <= 0) || (m_ItemCount <= 0));
@@ -215,6 +168,31 @@ public:
 	// tolua_end
 
 	AStringVector  m_LoreTable;  // Exported in ManualBindings.cpp
+
+	/**
+	Compares two items for the same type or category. Type of item is defined
+	via `m_ItemType` and `m_ItemDamage`. Some items (e.g. planks) have the same
+	`m_ItemType` and the wood kind is defined via `m_ItemDamage`. `-1` is used
+	as placeholder for all kinds (e.g. all kind of planks).
+
+	Items are different when the `ItemType` is different or the `ItemDamage`
+	is different and unequal -1.
+	*/
+	struct sItemCompare
+	{
+		bool operator() (const cItem & a_Lhs, const cItem & a_Rhs) const
+		{
+			if (a_Lhs.m_ItemType != a_Rhs.m_ItemType)
+			{
+				return (a_Lhs.m_ItemType < a_Rhs.m_ItemType);
+			}
+			if ((a_Lhs.m_ItemDamage == -1) || (a_Rhs.m_ItemDamage == -1))
+			{
+				return false;  // -1 is a wildcard, damage of -1 alway compares equal
+			}
+			return (a_Lhs.m_ItemDamage < a_Rhs.m_ItemDamage);
+		}
+	};
 
 	// tolua_begin
 

@@ -8,28 +8,32 @@
 
 
 
-class cBlockRedstoneHandler :
-	public cClearMetaOnDrop<cBlockHandler>
+class cBlockRedstoneHandler:
+	public cBlockHandler
 {
-	using super = cClearMetaOnDrop<cBlockHandler>;
+	using Super = cBlockHandler;
 
 public:
 
 	cBlockRedstoneHandler(BLOCKTYPE a_BlockType):
-		super(a_BlockType)
+		Super(a_BlockType)
 	{
 	}
 
-	virtual bool CanBeAt(cChunkInterface & a_ChunkInterface, int a_RelX, int a_RelY, int a_RelZ, const cChunk & a_Chunk) override
+
+
+
+
+	virtual bool CanBeAt(cChunkInterface & a_ChunkInterface, const Vector3i a_RelPos, const cChunk & a_Chunk) override
 	{
-		if (a_RelY <= 0)
+		if (a_RelPos.y <= 0)
 		{
 			return false;
 		}
 
 		BLOCKTYPE BelowBlock;
 		NIBBLETYPE BelowBlockMeta;
-		a_Chunk.GetBlockTypeMeta(a_RelX, a_RelY - 1, a_RelZ, BelowBlock, BelowBlockMeta);
+		a_Chunk.GetBlockTypeMeta(a_RelPos.addedY(-1), BelowBlock, BelowBlockMeta);
 
 		if (cBlockInfo::FullyOccupiesVoxel(BelowBlock))
 		{
@@ -45,6 +49,19 @@ public:
 		}
 		return false;
 	}
+
+
+
+
+
+	virtual cItems ConvertToPickups(NIBBLETYPE a_BlockMeta, cBlockEntity * a_BlockEntity, const cEntity * a_Digger, const cItem * a_Tool) override
+	{
+		return cItem(E_ITEM_REDSTONE_DUST, 1, 0);
+	}
+
+
+
+
 
 	virtual ColourID GetMapBaseColourID(NIBBLETYPE a_Meta) override
 	{

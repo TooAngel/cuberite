@@ -4,6 +4,7 @@
 #pragma once
 
 #include "BlockEntity.h"
+#include "../BlockType.h"
 
 
 
@@ -11,11 +12,11 @@
 
 // tolua_begin
 
-class cBedEntity :
+class cBedEntity:
 	public cBlockEntity
 {
 	// tolua_end
-	using super = cBlockEntity;
+	using Super = cBlockEntity;
 
 public:  // tolua_export
 

@@ -18,11 +18,21 @@
 
 
 cHopperEntity::cHopperEntity(BLOCKTYPE a_BlockType, NIBBLETYPE a_BlockMeta, Vector3i a_Pos, cWorld * a_World):
-	super(a_BlockType, a_BlockMeta, a_Pos, ContentsWidth, ContentsHeight, a_World),
+	Super(a_BlockType, a_BlockMeta, a_Pos, ContentsWidth, ContentsHeight, a_World),
 	m_LastMoveItemsInTick(0),
-	m_LastMoveItemsOutTick(0)
+	m_LastMoveItemsOutTick(0),
+	m_Locked(false)
 {
 	ASSERT(a_BlockType == E_BLOCK_HOPPER);
+}
+
+
+
+
+
+void cHopperEntity::SetLocked(bool a_Value)
+{
+	m_Locked = a_Value;
 }
 
 
@@ -53,7 +63,7 @@ std::pair<bool, Vector3i> cHopperEntity::GetOutputBlockPos(NIBBLETYPE a_BlockMet
 
 void cHopperEntity::CopyFrom(const cBlockEntity & a_Src)
 {
-	super::CopyFrom(a_Src);
+	Super::CopyFrom(a_Src);
 	auto & src = static_cast<const cHopperEntity &>(a_Src);
 	m_LastMoveItemsInTick = src.m_LastMoveItemsInTick;
 	m_LastMoveItemsOutTick = src.m_LastMoveItemsOutTick;
@@ -69,9 +79,12 @@ bool cHopperEntity::Tick(std::chrono::milliseconds a_Dt, cChunk & a_Chunk)
 	Int64 CurrentTick = a_Chunk.GetWorld()->GetWorldAge();
 
 	bool isDirty = false;
-	isDirty = MoveItemsIn  (a_Chunk, CurrentTick) || isDirty;
-	isDirty = MovePickupsIn(a_Chunk, CurrentTick) || isDirty;
-	isDirty = MoveItemsOut (a_Chunk, CurrentTick) || isDirty;
+	if (!m_Locked)
+	{
+		isDirty = MoveItemsIn  (a_Chunk, CurrentTick) || isDirty;
+		isDirty = MovePickupsIn(a_Chunk, CurrentTick) || isDirty;
+		isDirty = MoveItemsOut (a_Chunk, CurrentTick) || isDirty;
+	}
 	return isDirty;
 }
 
@@ -562,11 +575,7 @@ bool cHopperEntity::MoveItemsToChest(cChunk & a_Chunk, Vector3i a_Coords)
 			FLOGWARNING("{0}: A chest entity was not found where expected, at {1} ({2}, {3}})", __FUNCTION__, a_Coords + ofs, ofs.x, ofs.z);
 			continue;
 		}
-		if (MoveItemsToGrid(*chest))
-		{
-			return true;
-		}
-		return false;
+		return MoveItemsToGrid(*chest);
 	}
 
 	// The chest was single and nothing could be moved

@@ -18,6 +18,7 @@
 #include "PistonHandler.h"
 #include "SmallGateHandler.h"
 #include "NoteBlockHandler.h"
+#include "ObserverHandler.h"
 #include "TNTHandler.h"
 #include "PoweredRailHandler.h"
 #include "PressurePlateHandler.h"
@@ -25,6 +26,7 @@
 #include "DropSpenserHandler.h"
 #include "RedstoneComparatorHandler.h"
 #include "TrappedChestHandler.h"
+#include "HopperHandler.h"
 
 
 
@@ -89,6 +91,8 @@ std::unique_ptr<cRedstoneHandler> cIncrementalRedstoneSimulator::CreateComponent
 		case E_BLOCK_REDSTONE_TORCH_OFF:
 		case E_BLOCK_REDSTONE_TORCH_ON: return cpp14::make_unique<cRedstoneTorchHandler>();
 
+		case E_BLOCK_OBSERVER: return cpp14::make_unique<cObserverHandler>();
+
 		case E_BLOCK_PISTON:
 		case E_BLOCK_STICKY_PISTON: return cpp14::make_unique<cPistonHandler>();
 
@@ -98,6 +102,7 @@ std::unique_ptr<cRedstoneHandler> cIncrementalRedstoneSimulator::CreateComponent
 
 		case E_BLOCK_BLOCK_OF_REDSTONE: return cpp14::make_unique<cRedstoneBlockHandler>();
 		case E_BLOCK_COMMAND_BLOCK: return cpp14::make_unique<cCommandBlockHandler>();
+		case E_BLOCK_HOPPER: return cpp14::make_unique<cHopperHandler>();
 		case E_BLOCK_NOTE_BLOCK: return cpp14::make_unique<cNoteBlockHandler>();
 		case E_BLOCK_REDSTONE_WIRE: return cpp14::make_unique<cRedstoneWireHandler>();
 		case E_BLOCK_TNT: return cpp14::make_unique<cTNTHandler>();
@@ -155,8 +160,7 @@ void cIncrementalRedstoneSimulator::Simulate(float a_dt)
 		if (CurrentHandler == nullptr)  // Block at CurrentPosition doesn't have a corresponding redstone handler
 		{
 			// Clean up cached PowerData for CurrentPosition
-			static_cast<cIncrementalRedstoneSimulator *>(m_World.GetRedstoneSimulator())->GetChunkData()->ErasePowerData(CurrentLocation);
-
+			GetChunkData()->ErasePowerData(CurrentLocation);
 			continue;
 		}
 
@@ -188,6 +192,66 @@ void cIncrementalRedstoneSimulator::Simulate(float a_dt)
 		if (IsAlwaysTicked(CurrentBlock))
 		{
 			m_Data.GetActiveBlocks().emplace_back(CurrentLocation);
+		}
+	}
+}
+
+
+
+
+
+void cIncrementalRedstoneSimulator::AddBlock(Vector3i a_Block, cChunk * a_Chunk)
+{
+	// Can't inspect block, so queue update anyway
+	if (a_Chunk == nullptr)
+	{
+		m_Data.WakeUp(a_Block);
+		return;
+	}
+
+	const auto RelPos = cChunkDef::AbsoluteToRelative(a_Block, a_Chunk->GetPos());
+	const auto CurBlock = a_Chunk->GetBlock(RelPos);
+
+	// Always update redstone devices
+	if (IsRedstone(CurBlock))
+	{
+		m_Data.WakeUp(a_Block);
+		return;
+	}
+
+	// Never update blocks without a handler
+	if (GetComponentHandler(CurBlock) == nullptr)
+	{
+		GetChunkData()->ErasePowerData(a_Block);
+		return;
+	}
+
+	// Only update others if there is a redstone device nearby
+	for (int x = -1; x < 2; ++x)
+	{
+		for (int y = -1; y < 2; ++y)
+		{
+			if (!cChunkDef::IsValidHeight(RelPos.y + y))
+			{
+				continue;
+			}
+
+			for (int z = -1; z < 2; ++z)
+			{
+				auto CheckPos = RelPos + Vector3i{x, y, z};
+				BLOCKTYPE Block;
+				NIBBLETYPE Meta;
+
+				// If we can't read the block, assume it is a mechanism
+				if (
+					!a_Chunk->UnboundedRelGetBlock(CheckPos, Block, Meta) ||
+					IsRedstone(Block)
+				)
+				{
+					m_Data.WakeUp(a_Block);
+					return;
+				}
+			}
 		}
 	}
 }

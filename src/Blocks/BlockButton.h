@@ -1,8 +1,10 @@
 #pragma once
 
 #include "BlockHandler.h"
+#include "../BlockInfo.h"
 #include "../Chunk.h"
 #include "Mixins.h"
+#include "ChunkInterface.h"
 
 
 
@@ -10,12 +12,12 @@
 class cBlockButtonHandler :
 	public cClearMetaOnDrop<cMetaRotator<cBlockHandler, 0x07, 0x04, 0x01, 0x03, 0x02, true>>
 {
-	using super = cClearMetaOnDrop<cMetaRotator<cBlockHandler, 0x07, 0x04, 0x01, 0x03, 0x02, true>>;
+	using Super = cClearMetaOnDrop<cMetaRotator<cBlockHandler, 0x07, 0x04, 0x01, 0x03, 0x02, true>>;
 
 public:
 
 	cBlockButtonHandler(BLOCKTYPE a_BlockType):
-		super(a_BlockType)
+		Super(a_BlockType)
 	{
 	}
 
@@ -23,60 +25,70 @@ public:
 
 
 
-	virtual bool OnUse(cChunkInterface & a_ChunkInterface, cWorldInterface & a_WorldInterface, cPlayer & a_Player, int a_BlockX, int a_BlockY, int a_BlockZ, eBlockFace a_BlockFace, int a_CursorX, int a_CursorY, int a_CursorZ) override
+	virtual bool OnUse(
+		cChunkInterface & a_ChunkInterface,
+		cWorldInterface & a_WorldInterface,
+		cPlayer & a_Player,
+		const Vector3i a_BlockPos,
+		eBlockFace a_BlockFace,
+		const Vector3i a_CursorPos
+	) override
 	{
-		Vector3i Pos(a_BlockX, a_BlockY, a_BlockZ);
-		NIBBLETYPE Meta = a_ChunkInterface.GetBlockMeta(Pos);
+		NIBBLETYPE Meta = a_ChunkInterface.GetBlockMeta(a_BlockPos);
 
-		Vector3d SoundPos(Pos);
-
-		// If button is already on do nothing
-		if (Meta & 0x08)
+		// If button is already on, do nothing:
+		if (IsButtonOn(Meta))
 		{
 			return false;
 		}
 
-		// Set p the ON bit to on
+		// Set the ON bit to on
 		Meta |= 0x08;
 
-		a_ChunkInterface.SetBlockMeta({a_BlockX, a_BlockY, a_BlockZ}, Meta, false);
-		a_WorldInterface.WakeUpSimulators(Pos);
-		a_WorldInterface.GetBroadcastManager().BroadcastSoundEffect("block.stone_button.click_on", SoundPos, 0.5f, 0.6f);
+		const auto SoundToPlay = (m_BlockType == E_BLOCK_STONE_BUTTON) ? "block.stone_button.click_on" : "block.wood_button.click_on";
+
+		a_ChunkInterface.SetBlockMeta(a_BlockPos, Meta, false);
+		a_WorldInterface.WakeUpSimulators(a_BlockPos);
+		a_WorldInterface.GetBroadcastManager().BroadcastSoundEffect(SoundToPlay, a_BlockPos, 0.5f, 0.6f, a_Player.GetClientHandle());
 
 		// Queue a button reset (unpress)
-		auto TickDelay = (m_BlockType == E_BLOCK_STONE_BUTTON) ? 20 : 30;
-		a_Player.GetWorld()->ScheduleTask(TickDelay, [SoundPos, Pos, this](cWorld & a_World)
-			{
-				if (a_World.GetBlock(Pos) == m_BlockType)
-				{
-					// Block hasn't change in the meantime; set its meta
-					a_World.SetBlockMeta(Pos.x, Pos.y, Pos.z, a_World.GetBlockMeta(Pos) & 0x07, false);
-					a_World.WakeUpSimulators(Pos);
-					a_World.BroadcastSoundEffect("block.stone_button.click_off", SoundPos, 0.5f, 0.5f);
-				}
-			}
-		);
+		QueueButtonRelease(*a_Player.GetWorld(), a_BlockPos, m_BlockType);
 
 		return true;
 	}
+
+
+
+
 
 	virtual bool IsUseable(void) override
 	{
 		return true;
 	}
 
+
+
+
+
 	virtual bool GetPlacementBlockTypeMeta(
-		cChunkInterface & a_ChunkInterface, cPlayer & a_Player,
-		int a_BlockX, int a_BlockY, int a_BlockZ, eBlockFace a_BlockFace,
-		int a_CursorX, int a_CursorY, int a_CursorZ,
+		cChunkInterface & a_ChunkInterface,
+		cPlayer & a_Player,
+		const Vector3i a_PlacedBlockPos,
+		eBlockFace a_ClickedBlockFace,
+		const Vector3i a_CursorPos,
 		BLOCKTYPE & a_BlockType, NIBBLETYPE & a_BlockMeta
 	) override
 	{
 		a_BlockType = m_BlockType;
-		a_BlockMeta = BlockFaceToMetaData(a_BlockFace);
+		a_BlockMeta = BlockFaceToMetaData(a_ClickedBlockFace);
 		return true;
 	}
 
+
+
+
+
+	/** Converts the block face of the neighbor to which the button is attached, to the block meta for this button. */
 	inline static NIBBLETYPE BlockFaceToMetaData(eBlockFace a_BlockFace)
 	{
 		switch (a_BlockFace)
@@ -96,6 +108,11 @@ public:
 		UNREACHABLE("Unsupported block face");
 	}
 
+
+
+
+
+	/** Converts the block meta of this button into a block face of the neighbor to which the button is attached. */
 	inline static eBlockFace BlockMetaDataToBlockFace(NIBBLETYPE a_Meta)
 	{
 		switch (a_Meta & 0x7)
@@ -114,16 +131,27 @@ public:
 		}
 	}
 
-	virtual bool CanBeAt(cChunkInterface & a_ChunkInterface, int a_RelX, int a_RelY, int a_RelZ, const cChunk & a_Chunk) override
+
+
+
+
+	virtual bool CanBeAt(cChunkInterface & a_ChunkInterface, const Vector3i a_RelPos, const cChunk & a_Chunk) override
 	{
-		NIBBLETYPE Meta;
-		a_Chunk.UnboundedRelGetBlockMeta(a_RelX, a_RelY, a_RelZ, Meta);
+		auto Meta = a_Chunk.GetMeta(a_RelPos);
+		auto SupportRelPos = AddFaceDirection(a_RelPos, BlockMetaDataToBlockFace(Meta), true);
+		if (!cChunkDef::IsValidHeight(SupportRelPos.y))
+		{
+			return false;
+		}
+		BLOCKTYPE SupportBlockType;
+		a_Chunk.UnboundedRelGetBlockType(SupportRelPos, SupportBlockType);
 
-		AddFaceDirection(a_RelX, a_RelY, a_RelZ, BlockMetaDataToBlockFace(Meta), true);
-		BLOCKTYPE BlockIsOn; a_Chunk.UnboundedRelGetBlockType(a_RelX, a_RelY, a_RelZ, BlockIsOn);
-
-		return (a_RelY > 0) && (cBlockInfo::FullyOccupiesVoxel(BlockIsOn));
+		return cBlockInfo::FullyOccupiesVoxel(SupportBlockType);
 	}
+
+
+
+
 
 	virtual ColourID GetMapBaseColourID(NIBBLETYPE a_Meta) override
 	{
@@ -132,12 +160,122 @@ public:
 	}
 
 	/** Extracts the ON bit from metadata and returns if true if it is set */
-	static bool IsButtonOn(NIBBLETYPE a_BlockMeta)
+	static bool IsButtonOn(NIBBLETYPE a_Meta)
 	{
-		return ((a_BlockMeta & 0x8) == 0x8);
+		return (a_Meta & 0x08) == 0x08;
+	}
+
+	/** Event handler for an arrow striking a block.
+	Performs appropriate handling if the arrow intersected a wooden button. */
+	static void OnArrowHit(cWorld & a_World, const Vector3i a_Position, const eBlockFace a_HitFace)
+	{
+		BLOCKTYPE Type;
+		NIBBLETYPE Meta;
+		const auto Pos = AddFaceDirection(a_Position, a_HitFace);
+
+		if (
+			!a_World.GetBlockTypeMeta(Pos, Type, Meta) ||
+			IsButtonOn(Meta) ||
+			!IsButtonPressedByArrow(a_World, Pos, Type, Meta)
+		)
+		{
+			// Bail if we're not specifically a wooden button, or it's already on
+			// or if the arrow didn't intersect. It is very important that nothing is
+			// done if the button is depressed, since the release task will already be queued
+			return;
+		}
+
+		a_World.SetBlockMeta(Pos, Meta | 0x08, false);
+		a_World.WakeUpSimulators(Pos);
+
+		// sound name is ok to be wood, because only wood gets triggered by arrow
+		a_World.GetBroadcastManager().BroadcastSoundEffect("block.wood_button.click_on", Pos, 0.5f, 0.6f);
+
+		// Queue a button reset
+		QueueButtonRelease(a_World, Pos, Type);
+	}
+
+private:
+
+	/** Schedules a recurring event at appropriate intervals to release a button at a given position.
+	The given block type is checked when the task is executed to ensure the position still contains a button. */
+	static void QueueButtonRelease(cWorld & a_ButtonWorld, const Vector3i a_Position, const BLOCKTYPE a_BlockType)
+	{
+		const auto TickDelay = (a_BlockType == E_BLOCK_STONE_BUTTON) ? 20 : 30;
+		a_ButtonWorld.ScheduleTask(
+			TickDelay,
+			[a_Position, a_BlockType](cWorld & a_World)
+			{
+				BLOCKTYPE Type;
+				NIBBLETYPE Meta;
+
+				if (
+					!a_World.GetBlockTypeMeta(a_Position, Type, Meta) ||
+					(Type != a_BlockType) || !IsButtonOn(Meta)
+				)
+				{
+					// Total failure or block changed, bail
+					return;
+				}
+
+				if (IsButtonPressedByArrow(a_World, a_Position, Type, Meta))
+				{
+					// Try again in a little while
+					QueueButtonRelease(a_World, a_Position, a_BlockType);
+					return;
+				}
+
+				// Block hasn't change in the meantime; release it
+				const auto SoundToPlayOnRelease = (Type == E_BLOCK_STONE_BUTTON) ? "block.stone_button.click_off" : "block.wood_button.click_off";
+
+				a_World.SetBlockMeta(a_Position, Meta & 0x07, false);
+				a_World.WakeUpSimulators(a_Position);
+				a_World.BroadcastSoundEffect(SoundToPlayOnRelease, a_Position, 0.5f, 0.5f);
+			}
+		);
+	}
+
+	/** Returns true if an arrow was found in the wooden button */
+	static bool IsButtonPressedByArrow(cWorld & a_World, const Vector3i a_ButtonPosition, const BLOCKTYPE a_BlockType, const NIBBLETYPE a_Meta)
+	{
+		if (a_BlockType != E_BLOCK_WOODEN_BUTTON)
+		{
+			return false;
+		}
+
+		const auto FaceOffset = GetButtonOffsetOnBlock(a_Meta);
+		const bool FoundArrow = !a_World.ForEachEntityInBox(
+			cBoundingBox(FaceOffset + a_ButtonPosition, 0.2, 0.2),
+			[](cEntity & a_Entity)
+			{
+				return a_Entity.IsArrow();
+			}
+		);
+
+		return FoundArrow;
+	}
+
+	/** Returns an offset to the integer world coordinates of a button.
+	Applying this offset yields the centre of the button's bounding box,
+	in terms of the position within the block the button with given meta occupies.
+
+	TODO: this is only approximate, return the exact bbox instead. */
+	static Vector3d GetButtonOffsetOnBlock(NIBBLETYPE a_Meta)
+	{
+		switch (BlockMetaDataToBlockFace(a_Meta))
+		{
+			case BLOCK_FACE_YM: return { 0.5, 1, 0.5 };
+			case BLOCK_FACE_XP: return { 0, 0.5, 0.5 };
+			case BLOCK_FACE_XM: return { 1, 0.5, 0.5 };
+			case BLOCK_FACE_ZP: return { 0.5, 0.5, 0 };
+			case BLOCK_FACE_ZM: return { 0.5, 0.5, 1 };
+			case BLOCK_FACE_YP: return { 0.5, 0, 0.5 };
+			case BLOCK_FACE_NONE:
+			{
+				ASSERT(!"Unhandled block face!");
+				return { 0, 0, 0 };
+			}
+		}
+		UNREACHABLE(!"Unhandled block face!");
 	}
 } ;
-
-
-
-

@@ -15,13 +15,14 @@
 
 
 
-class cEnchantingWindow :
+class cEnchantingWindow:
 	public cWindow
 {
-	typedef cWindow super;
+	using Super = cWindow;
 
 public:
-	cEnchantingWindow(int a_BlockX, int a_BlockY, int a_BlockZ);
+
+	cEnchantingWindow(Vector3i a_BlockPos);
 
 	virtual void SetProperty(short a_Property, short a_Value, cPlayer & a_Player) override;
 
@@ -36,7 +37,7 @@ public:
 
 protected:
 	short m_PropertyValue[3];
-	int m_BlockX, m_BlockY, m_BlockZ;
+	Vector3i m_BlockPos;
 };
 
 

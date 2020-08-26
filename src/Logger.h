@@ -6,19 +6,10 @@ class cLogger
 {
 public:
 
-	enum eLogLevel
-	{
-		llRegular,
-		llInfo,
-		llWarning,
-		llError,
-	};
-
-
 	class cListener
 	{
 		public:
-		virtual void Log(AString a_Message, eLogLevel a_LogLevel) = 0;
+		virtual void Log(std::string_view a_Message, eLogLevel a_LogLevel) = 0;
 
 		virtual ~cListener(){}
 	};
@@ -59,15 +50,17 @@ public:
 	};
 
 	/** Log a message formatted with a printf style formatting string. */
-	void LogPrintf(const char * a_Format, eLogLevel a_LogLevel, fmt::ArgList a_ArgList);
-	FMT_VARIADIC(void, LogPrintf, const char *, eLogLevel)
+	void LogPrintf(
+		std::string_view a_Format, eLogLevel a_LogLevel, fmt::printf_args a_ArgList
+	);
 
 	/** Log a message formatted with a python style formatting string. */
-	void LogFormat(const char * a_Format, eLogLevel a_LogLevel, fmt::ArgList a_ArgList);
-	FMT_VARIADIC(void, LogFormat, const char *, eLogLevel)
+	void LogFormat(
+		std::string_view a_Format, eLogLevel a_LogLevel, fmt::format_args a_ArgList
+	);
 
 	/** Logs the simple text message at the specified log level. */
-	void LogSimple(AString a_Message, eLogLevel a_LogLevel = llRegular);
+	void LogSimple(std::string_view a_Message, eLogLevel a_LogLevel = eLogLevel::Regular);
 
 	cAttachment AttachListener(std::unique_ptr<cListener> a_Listener);
 
@@ -80,6 +73,7 @@ private:
 	std::vector<std::unique_ptr<cListener>> m_LogListeners;
 
 	void DetachListener(cListener * a_Listener);
+	void LogLine(std::string_view a_Line, eLogLevel a_LogLevel);
 
 };
 

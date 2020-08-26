@@ -14,6 +14,7 @@
 #include "../Simulator/FireSimulator.h"
 #include "../IniFile.h"
 #include "../MobSpawner.h"
+#include "../BlockInfo.h"
 
 
 
@@ -274,7 +275,7 @@ void cFinishGenClumpTopBlock::TryPlaceFoliageClump(cChunkDesc & a_ChunkDesc, int
 
 
 
-void cFinishGenClumpTopBlock::ParseConfigurationString(AString a_RawClumpInfo, std::vector<BiomeInfo> & a_Output)
+void cFinishGenClumpTopBlock::ParseConfigurationString(const AString & a_RawClumpInfo, std::vector<BiomeInfo> & a_Output)
 {
 	// Initialize the vector for all biomes.
 	for (int i = static_cast<int>(a_Output.size()); i < static_cast<int>(biMaxVariantBiome); i++)

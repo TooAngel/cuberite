@@ -1,6 +1,6 @@
-include_directories (SYSTEM "../../lib/jsoncpp/include")
+target_sources(
+	${CMAKE_PROJECT_NAME} PRIVATE
 
-SET (SRCS
 	Authenticator.cpp
 	ChunkDataSerializer.cpp
 	ForgeHandshake.cpp
@@ -14,9 +14,8 @@ SET (SRCS
 	Protocol_1_13.cpp
 	ProtocolPalettes.cpp
 	ProtocolRecognizer.cpp
-)
+	RecipeMapper.cpp
 
-SET (HDRS
 	Authenticator.h
 	ChunkDataSerializer.h
 	ForgeHandshake.h
@@ -31,9 +30,5 @@ SET (HDRS
 	Protocol_1_13.h
 	ProtocolPalettes.h
 	ProtocolRecognizer.h
+	RecipeMapper.h
 )
-
-if (NOT MSVC)
-	add_library(Protocol ${SRCS} ${HDRS})
-	target_link_libraries(Protocol fmt::fmt)
-endif()

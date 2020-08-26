@@ -93,30 +93,6 @@ extern "C" int luaopen_lxp(lua_State * a_LuaState)
 
 
 
-void cBlockInfo::sHandlerDeleter::operator () (cBlockHandler * a_Handler)
-{
-	delete a_Handler;
-}
-
-
-
-
-
-cBlockInfo::cBlockInfoArray::cBlockInfoArray()
-{
-	cBlockInfoArray & BlockInfos = *this;
-	// The piece-loading code uses the handlers for rotations, so we need valid handlers
-	// Insert dummy handlers:
-	for (size_t i = 0; i < BlockInfos.size(); i++)
-	{
-		BlockInfos[i].m_Handler.reset(new cBlockHandler(static_cast<BLOCKTYPE>(i)));
-	}
-}
-
-
-
-
-
 cBoundingBox::cBoundingBox(double, double, double, double, double, double)
 {
 }
@@ -144,8 +120,9 @@ cBoundingBox cBlockHandler::GetPlacementCollisionBox(BLOCKTYPE a_XM, BLOCKTYPE a
 
 bool cBlockHandler::GetPlacementBlockTypeMeta(
 	cChunkInterface & a_ChunkInterface, cPlayer & a_Player,
-	int a_BlockX, int a_BlockY, int a_BlockZ, eBlockFace a_BlockFace,
-	int a_CursorX, int a_CursorY, int a_CursorZ,
+	const Vector3i a_BlockPos,
+	eBlockFace a_BlockFace,
+	const Vector3i a_CursorPos,
 	BLOCKTYPE & a_BlockType, NIBBLETYPE & a_BlockMeta
 )
 {
@@ -156,7 +133,7 @@ bool cBlockHandler::GetPlacementBlockTypeMeta(
 
 
 
-void cBlockHandler::OnUpdate(cChunkInterface & cChunkInterface, cWorldInterface & a_WorldInterface, cBlockPluginInterface & a_PluginInterface, cChunk & a_Chunk, int a_BlockX, int a_BlockY, int a_BlockZ)
+void cBlockHandler::OnUpdate(cChunkInterface & a_ChunkInterface, cWorldInterface & a_WorldInterface, cBlockPluginInterface & a_PluginInterface, cChunk & a_Chunk, const Vector3i a_RelPos)
 {
 }
 
@@ -205,7 +182,7 @@ cItems cBlockHandler::ConvertToPickups(NIBBLETYPE a_BlockMeta, cBlockEntity * a_
 
 
 
-bool cBlockHandler::CanBeAt(cChunkInterface & a_ChunkInterface, int a_BlockX, int a_BlockY, int a_BlockZ, const cChunk & a_Chunk)
+bool cBlockHandler::CanBeAt(cChunkInterface & a_ChunkInterface, const Vector3i a_RelPos, const cChunk & a_Chunk)
 {
 	return true;
 }
@@ -267,7 +244,7 @@ ColourID cBlockHandler::GetMapBaseColourID(NIBBLETYPE a_Meta)
 
 
 
-bool cBlockHandler::IsInsideBlock(Vector3d a_Position, const BLOCKTYPE a_BlockType, const NIBBLETYPE a_BlockMeta)
+bool cBlockHandler::IsInsideBlock(Vector3d a_Position, const NIBBLETYPE a_BlockMeta)
 {
 	return true;
 }
@@ -276,7 +253,7 @@ bool cBlockHandler::IsInsideBlock(Vector3d a_Position, const BLOCKTYPE a_BlockTy
 
 
 
-cBlockEntity * cBlockEntity::CreateByBlockType(BLOCKTYPE a_BlockType, NIBBLETYPE a_BlockMeta, Vector3i a_Pos, cWorld * a_World)
+OwnedBlockEntity cBlockEntity::CreateByBlockType(BLOCKTYPE a_BlockType, NIBBLETYPE a_BlockMeta, Vector3i a_Pos, cWorld * a_World)
 {
 	return nullptr;
 }
@@ -318,7 +295,7 @@ bool cBlockEntity::IsBlockEntityBlockType(BLOCKTYPE a_BlockType)
 
 
 
-cBlockEntity * cBlockEntity::Clone(Vector3i a_Pos)
+OwnedBlockEntity cBlockEntity::Clone(Vector3i a_Pos)
 {
 	return nullptr;
 }
@@ -408,4 +385,44 @@ void cItemGrid::GenerateRandomLootWithBooks(const cLootProbab * a_LootProbabs, s
 std::set<eMonsterType> cMobSpawner::GetAllowedMobTypes(EMCSBiome a_Biome)
 {
 	return {};
+}
+
+
+
+
+
+cItem::cItem()
+{
+}
+
+
+
+
+
+cItem::cItem(
+	short a_ItemType,
+	char a_ItemCount,
+	short a_ItemDamage,
+	const AString & a_Enchantments,
+	const AString & a_CustomName,
+	const AStringVector & a_LoreTable
+)
+{
+}
+
+
+
+
+
+void cItem::Empty()
+{
+}
+
+
+
+
+
+cBlockHandler * cBlockHandler::CreateBlockHandler(BLOCKTYPE a_BlockType)
+{
+	return new cBlockHandler(a_BlockType);
 }

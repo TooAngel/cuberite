@@ -2,6 +2,7 @@
 #pragma once
 
 #include "BlockEntity.h"
+#include "../BlockType.h"
 
 
 
@@ -14,7 +15,7 @@ class cJukeboxEntity :
 {
 	// tolua_end
 
-	using super = cBlockEntity;
+	using Super = cBlockEntity;
 
 public:  // tolua_export
 
@@ -46,6 +47,7 @@ public:  // tolua_export
 	// tolua_end
 
 	// cBlockEntity overrides:
+	virtual void Destroy(void) override;
 	virtual void CopyFrom(const cBlockEntity & a_Src) override;
 	virtual bool UsedBy(cPlayer * a_Player) override;
 	virtual void SendTo(cClientHandle &) override {}

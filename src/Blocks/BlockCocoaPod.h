@@ -10,11 +10,11 @@
 class cBlockCocoaPodHandler :
 	public cBlockHandler
 {
-	using super = cBlockHandler;
+	using Super = cBlockHandler;
 
 public:
 	cBlockCocoaPodHandler(BLOCKTYPE a_BlockType):
-		super(a_BlockType)
+		Super(a_BlockType)
 	{
 	}
 
@@ -22,27 +22,32 @@ public:
 
 
 
-	virtual bool CanBeAt(cChunkInterface & a_ChunkInterface, int a_RelX, int a_RelY, int a_RelZ, const cChunk & a_Chunk) override
+	virtual bool CanBeAt(cChunkInterface & a_ChunkInterface, const Vector3i a_RelPos, const cChunk & a_Chunk) override
 	{
-		eBlockFace BlockFace = MetaToBlockFace(a_Chunk.GetMeta(a_RelX, a_RelY, a_RelZ));
-		AddFaceDirection(a_RelX, a_RelY, a_RelZ, BlockFace, true);
-
+		// Check that we're attached to a jungle log block:
+		eBlockFace BlockFace = MetaToBlockFace(a_Chunk.GetMeta(a_RelPos));
+		auto LogPos = AddFaceDirection(a_RelPos, BlockFace, true);
 		BLOCKTYPE BlockType;
 		NIBBLETYPE BlockMeta;
-		a_Chunk.UnboundedRelGetBlock(a_RelX, a_RelY, a_RelZ, BlockType, BlockMeta);
-
-		return ((BlockType == E_BLOCK_LOG) && ((BlockMeta & 0x3) == E_META_LOG_JUNGLE));
+		a_Chunk.UnboundedRelGetBlock(LogPos, BlockType, BlockMeta);
+		return ((BlockType == E_BLOCK_LOG) && ((BlockMeta & 0x03) == E_META_LOG_JUNGLE));
 	}
 
 
 
 
 
-	virtual void OnUpdate(cChunkInterface & cChunkInterface, cWorldInterface & a_WorldInterface, cBlockPluginInterface & a_PluginInterface, cChunk & a_Chunk, int a_RelX, int a_RelY, int a_RelZ) override
+	virtual void OnUpdate(
+		cChunkInterface & a_ChunkInterface,
+		cWorldInterface & a_WorldInterface,
+		cBlockPluginInterface & a_PluginInterface,
+		cChunk & a_Chunk,
+		const Vector3i a_RelPos
+	) override
 	{
 		if (GetRandomProvider().RandBool(0.20))
 		{
-			Grow(a_Chunk, {a_RelX, a_RelY, a_RelZ});
+			Grow(a_Chunk, a_RelPos);
 		}
 	}
 
@@ -67,11 +72,11 @@ public:
 		auto typeMeta = meta & 0x03;
 		auto growState = meta >> 2;
 
-		if (growState >= 3)
+		if (growState >= 2)
 		{
 			return 0;
 		}
-		auto newState = std::min(growState + a_NumStages, 3);
+		auto newState = std::min(growState + a_NumStages, 2);
 		a_Chunk.SetMeta(a_RelPos, static_cast<NIBBLETYPE>(newState << 2 | typeMeta));
 		return newState - growState;
 	}

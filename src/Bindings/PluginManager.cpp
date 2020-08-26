@@ -57,7 +57,7 @@ void cPluginManager::RefreshPluginList(void)
 {
 	// Get a list of currently available folders:
 	AString PluginsPath = GetPluginsPath() + "/";
-	AStringVector Contents = cFile::GetFolderContents(PluginsPath.c_str());
+	AStringVector Contents = cFile::GetFolderContents(PluginsPath);
 	AStringVector Folders;
 	for (auto & item: Contents)
 	{
@@ -154,8 +154,9 @@ void cPluginManager::ReloadPluginsNow(cSettingsRepositoryInterface & a_Settings)
 void cPluginManager::InsertDefaultPlugins(cSettingsRepositoryInterface & a_Settings)
 {
 	a_Settings.AddKeyName("Plugins");
-	a_Settings.AddValue("Plugins", "Plugin", "Core");
-	a_Settings.AddValue("Plugins", "Plugin", "ChatLog");
+	a_Settings.AddValue("Plugins", "Core", "1");
+	a_Settings.AddValue("Plugins", "ChatLog", "1");
+	a_Settings.AddValue("Plugins", "ProtectionAreas", "0");
 }
 
 
@@ -794,11 +795,11 @@ bool cPluginManager::CallHookPlayerLeftClick(cPlayer & a_Player, int a_BlockX, i
 
 
 
-bool cPluginManager::CallHookPlayerMoving(cPlayer & a_Player, const Vector3d & a_OldPosition, const Vector3d & a_NewPosition)
+bool cPluginManager::CallHookPlayerMoving(cPlayer & a_Player, const Vector3d & a_OldPosition, const Vector3d & a_NewPosition, bool a_PreviousIsOnGround)
 {
 	return GenericCallHook(HOOK_PLAYER_MOVING, [&](cPlugin * a_Plugin)
 		{
-			return a_Plugin->OnPlayerMoving(a_Player, a_OldPosition, a_NewPosition);
+			return a_Plugin->OnPlayerMoving(a_Player, a_OldPosition, a_NewPosition, a_PreviousIsOnGround);
 		}
 	);
 }
@@ -838,6 +839,19 @@ bool cPluginManager::CallHookPlayerPlacingBlock(cPlayer & a_Player, const sSetBl
 	return GenericCallHook(HOOK_PLAYER_PLACING_BLOCK, [&](cPlugin * a_Plugin)
 		{
 			return a_Plugin->OnPlayerPlacingBlock(a_Player, a_BlockChange);
+		}
+	);
+}
+
+
+
+
+
+bool cPluginManager::CallHookPlayerCrouched(cPlayer & a_Player)
+{
+	return GenericCallHook(HOOK_PLAYER_CROUCHED, [&](cPlugin * a_Plugin)
+		{
+			return a_Plugin->OnPlayerCrouched(a_Player);
 		}
 	);
 }
@@ -1387,7 +1401,7 @@ bool cPluginManager::BindCommand(
 
 	auto & reg = m_Commands[a_Command];
 	reg.m_Plugin     = a_Plugin;
-	reg.m_Handler    = a_Handler;
+	reg.m_Handler    = std::move(a_Handler);
 	reg.m_Permission = a_Permission;
 	reg.m_HelpString = a_HelpString;
 	return true;
@@ -1494,7 +1508,7 @@ bool cPluginManager::BindConsoleCommand(
 
 	auto & reg = m_ConsoleCommands[a_Command];
 	reg.m_Plugin     = a_Plugin;
-	reg.m_Handler    = a_Handler;
+	reg.m_Handler    = std::move(a_Handler);
 	reg.m_Permission = "";
 	reg.m_HelpString = a_HelpString;
 	return true;
@@ -1720,19 +1734,37 @@ AStringVector cPluginManager::GetFoldersToLoad(cSettingsRepositoryInterface & a_
 		InsertDefaultPlugins(a_Settings);
 	}
 
-	// Get the list of plugins to load:
 	AStringVector res;
-	auto Values = a_Settings.GetValues("Plugins");
-	for (auto NameValue : Values)
+
+	// Get the old format plugin list, and migrate it.
+	// Upgrade path added on 2020-03-27
+	auto OldValues = a_Settings.GetValues("Plugins");
+	for (const auto & NameValue : OldValues)
 	{
 		AString ValueName = NameValue.first;
 		if (ValueName.compare("Plugin") == 0)
 		{
 			AString PluginFile = NameValue.second;
-			if (!PluginFile.empty())
+			if (
+				!PluginFile.empty() &&
+				(PluginFile != "0") &&
+				(PluginFile != "1")
+			)
 			{
-				res.push_back(PluginFile);
+				a_Settings.DeleteValue("Plugins", ValueName);
+				a_Settings.SetValue("Plugins", PluginFile, "1");
 			}
+		}
+	}  // for i - ini values
+
+	// Get the list of plugins to load:
+	auto Values = a_Settings.GetValues("Plugins");
+	for (const auto & NameValue : Values)
+	{
+		AString Enabled = NameValue.second;
+		if (Enabled == "1")
+		{
+			res.push_back(NameValue.first);
 		}
 	}  // for i - ini values
 

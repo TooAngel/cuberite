@@ -25,7 +25,9 @@ Implements the 1.12 protocol classes:
 #include "../Root.h"
 #include "../Server.h"
 #include "../ClientHandle.h"
+#include "../CraftingRecipes.h"
 #include "../Bindings/PluginManager.h"
+#include "../JsonUtils.h"
 
 
 
@@ -42,9 +44,9 @@ Implements the 1.12 protocol classes:
 #pragma clang diagnostic ignored "-Wduplicate-enum"
 #endif
 
-namespace Metadata
+namespace Metadata_1_12
 {
-	enum Metadata_Index
+	enum MetadataIndex
 	{
 		// Entity
 		ENTITY_FLAGS,
@@ -361,9 +363,8 @@ void cProtocol_1_12::HandlePacketStatusRequest(cByteBuffer & a_ByteBuffer)
 	}
 
 	// Serialize the response into a packet:
-	Json::FastWriter Writer;
 	cPacketizer Pkt(*this, pktStatusResponse);
-	Pkt.WriteString(Writer.write(ResponseValue));
+	Pkt.WriteString(JsonUtils::WriteFastString(ResponseValue));
 }
 
 
@@ -372,7 +373,7 @@ void cProtocol_1_12::HandlePacketStatusRequest(cByteBuffer & a_ByteBuffer)
 
 void cProtocol_1_12::WriteEntityMetadata(cPacketizer & a_Pkt, const cEntity & a_Entity)
 {
-	using namespace Metadata;
+	using namespace Metadata_1_12;
 
 	// Common metadata:
 	Int8 Flags = 0;
@@ -579,7 +580,7 @@ void cProtocol_1_12::WriteEntityMetadata(cPacketizer & a_Pkt, const cEntity & a_
 
 void cProtocol_1_12::WriteMobMetadata(cPacketizer & a_Pkt, const cMonster & a_Mob)
 {
-	using namespace Metadata;
+	using namespace Metadata_1_12;
 
 	// Living Enitiy Metadata
 	if (a_Mob.HasCustomName())
@@ -815,17 +816,6 @@ void cProtocol_1_12::WriteMobMetadata(cPacketizer & a_Pkt, const cMonster & a_Mo
 			break;
 		}  // case mtSheep
 
-		case mtSkeleton:
-		{
-			// XXX Skeletons are separate entities; all skeletons are currently treated as regular ones
-
-			// auto & Skeleton = static_cast<const cSkeleton &>(a_Mob);
-			// a_Pkt.WriteBEUInt8(SKELETON_TYPE);
-			// a_Pkt.WriteBEUInt8(METADATA_TYPE_VARINT);
-			// a_Pkt.WriteVarInt32(Skeleton.IsWither() ? 1 : 0);
-			break;
-		}  // case mtSkeleton
-
 		case mtSlime:
 		{
 			auto & Slime = static_cast<const cSlime &>(a_Mob);
@@ -919,9 +909,6 @@ void cProtocol_1_12::WriteMobMetadata(cPacketizer & a_Pkt, const cMonster & a_Mo
 			// a_Pkt.WriteBEUInt8(METADATA_TYPE_VARINT);
 			// a_Pkt.WriteVarInt32(Zombie.IsVillagerZombie() ? 1 : 0);
 
-			// a_Pkt.WriteBEUInt8(ZOMBIE_CONVERTING);
-			// a_Pkt.WriteBEUInt8(METADATA_TYPE_BOOL);
-			// a_Pkt.WriteBool(Zombie.IsConverting());
 			break;
 		}  // case mtZombie
 
@@ -933,6 +920,23 @@ void cProtocol_1_12::WriteMobMetadata(cPacketizer & a_Pkt, const cMonster & a_Mo
 			a_Pkt.WriteBool(ZombiePigman.IsBaby());
 			break;
 		}  // case mtZombiePigman
+
+		case mtZombieVillager:
+		{
+			auto & ZombieVillager = reinterpret_cast<const cZombieVillager &>(a_Mob);
+			a_Pkt.WriteBEUInt8(ZOMBIE_IS_BABY);
+			a_Pkt.WriteBEUInt8(METADATA_TYPE_BOOL);
+			a_Pkt.WriteBool(ZombieVillager.IsBaby());
+
+			a_Pkt.WriteBEUInt8(ZOMBIE_VILLAGER_CONVERTING);
+			a_Pkt.WriteBEUInt8(METADATA_TYPE_VARINT);
+			a_Pkt.WriteVarInt32(static_cast<UInt32>(ZombieVillager.ConversionTime()));
+
+			a_Pkt.WriteBEUInt8(ZOMBIE_VILLAGER_PROFESSION);
+			a_Pkt.WriteBEUInt8(METADATA_TYPE_VARINT);
+			a_Pkt.WriteVarInt32(static_cast<UInt32>(ZombieVillager.GetProfession()));
+			break;
+		}  // case mtZombieVillager
 
 		case mtBlaze:
 		case mtEnderDragon:
@@ -954,7 +958,9 @@ void cProtocol_1_12::WriteMobMetadata(cPacketizer & a_Pkt, const cMonster & a_Mo
 
 		case mtGiant:
 		case mtSilverfish:
+		case mtSkeleton:
 		case mtSquid:
+		case mtWitherSkeleton:
 		{
 			// Mobs with no extra fields
 			break;
@@ -995,12 +1001,14 @@ UInt32 cProtocol_1_12::GetPacketID(cProtocol::ePacketType a_Packet)
 		case pktLeashEntity:         return 0x3c;
 		case pktPlayerMaxSpeed:      return 0x4d;
 		case pktRemoveEntityEffect:  return 0x32;
+		case pktResourcePack:        return 0x33;
 		case pktRespawn:             return 0x34;
 		case pktScoreboardObjective: return 0x41;
 		case pktSpawnPosition:       return 0x45;
 		case pktTeleportEntity:      return 0x4b;
 		case pktTimeUpdate:          return 0x46;
 		case pktTitle:               return 0x47;
+		case pktUnlockRecipe:        return 0x30;
 		case pktUpdateBlockEntity:   return 0x09;
 		case pktUpdateHealth:        return 0x40;
 		case pktUpdateScore:         return 0x44;
@@ -1013,10 +1021,27 @@ UInt32 cProtocol_1_12::GetPacketID(cProtocol::ePacketType a_Packet)
 
 
 
+void cProtocol_1_12::HandleCraftRecipe(cByteBuffer & a_ByteBuffer)
+{
+	HANDLE_READ(a_ByteBuffer, ReadBEUInt8, UInt8,  WindowID);
+	HANDLE_READ(a_ByteBuffer, ReadVarInt,  UInt32, RecipeID);
+	HANDLE_READ(a_ByteBuffer, ReadBool,    bool,   MakeAll);
+	auto CuberiteRecipeId = cRoot::Get()->GetRecipeMapper()->GetCuberiteRecipeId(RecipeID, m_Client->GetProtocolVersion());
+	if (CuberiteRecipeId.has_value())
+	{
+		m_Client->HandleCraftRecipe(CuberiteRecipeId.value());
+	}
+}
+
+
+
+
+
 void cProtocol_1_12::HandlePacketCraftingBookData(cByteBuffer & a_ByteBuffer)
 {
+	// TODO not yet used, not sure if it is needed
+	// https://wiki.vg/index.php?title=Protocol&oldid=14204#Crafting_Book_Data
 	a_ByteBuffer.SkipRead(a_ByteBuffer.GetReadableSpace() - 1);
-	m_Client->GetPlayer()->SendMessageInfo("The green crafting book feature is not implemented yet.");
 }
 
 
@@ -1088,7 +1113,7 @@ bool cProtocol_1_12::HandlePacket(cByteBuffer & a_ByteBuffer, UInt32 a_PacketTyp
 				case 0x15: HandlePacketEntityAction(a_ByteBuffer); return true;
 				case 0x16: HandlePacketSteerVehicle(a_ByteBuffer); return true;
 				case 0x17: HandlePacketCraftingBookData(a_ByteBuffer); return true;
-				case 0x18: break;  // Resource pack status - not yet implemented
+				case 0x18: HandlePacketResourcePackStatus(a_ByteBuffer); return true;
 				case 0x19: HandlePacketAdvancementTab(a_ByteBuffer); return true;
 				case 0x1a: HandlePacketSlotSelect(a_ByteBuffer); return true;
 				case 0x1b: HandlePacketCreativeInventoryAction(a_ByteBuffer); return true;
@@ -1160,9 +1185,11 @@ UInt32 cProtocol_1_12_1::GetPacketID(ePacketType a_Packet)
 		case pktPlayerMaxSpeed:      return 0x4e;
 		case pktPlayerMoveLook:      return 0x2f;
 		case pktRemoveEntityEffect:  return 0x33;
+		case pktResourcePack:        return 0x34;
 		case pktRespawn:             return 0x35;
 		case pktScoreboardObjective: return 0x42;
 		case pktSpawnPosition:       return 0x46;
+		case pktUnlockRecipe:        return 0x31;
 		case pktUpdateHealth:        return 0x41;
 		case pktUpdateScore:         return 0x45;
 		case pktUseBed:              return 0x30;
@@ -1213,9 +1240,8 @@ void cProtocol_1_12_1::HandlePacketStatusRequest(cByteBuffer & a_ByteBuffer)
 	}
 
 	// Serialize the response into a packet:
-	Json::FastWriter Writer;
 	cPacketizer Pkt(*this, pktStatusResponse);
-	Pkt.WriteString(Writer.write(ResponseValue));
+	Pkt.WriteString(JsonUtils::WriteFastString(ResponseValue));
 }
 
 
@@ -1271,13 +1297,13 @@ bool cProtocol_1_12_1::HandlePacket(cByteBuffer & a_ByteBuffer, UInt32 a_PacketT
 				case 0x0f: HandlePacketPlayerLook(a_ByteBuffer); return true;
 				case 0x10: HandlePacketVehicleMove(a_ByteBuffer); return true;
 				case 0x11: HandlePacketBoatSteer(a_ByteBuffer); return true;
-				case 0x12: break;  // Craft Recipe Request - not yet implemented
+				case 0x12: HandleCraftRecipe(a_ByteBuffer); return true;
 				case 0x13: HandlePacketPlayerAbilities(a_ByteBuffer); return true;
 				case 0x14: HandlePacketBlockDig(a_ByteBuffer); return true;
 				case 0x15: HandlePacketEntityAction(a_ByteBuffer); return true;
 				case 0x16: HandlePacketSteerVehicle(a_ByteBuffer); return true;
 				case 0x17: HandlePacketCraftingBookData(a_ByteBuffer); return true;
-				case 0x18: break;  // Resource pack status - not yet implemented
+				case 0x18: HandlePacketResourcePackStatus(a_ByteBuffer); return true;
 				case 0x19: HandlePacketAdvancementTab(a_ByteBuffer); return true;
 				case 0x1a: HandlePacketSlotSelect(a_ByteBuffer); return true;
 				case 0x1b: HandlePacketCreativeInventoryAction(a_ByteBuffer); return true;
@@ -1371,9 +1397,8 @@ void cProtocol_1_12_2::HandlePacketStatusRequest(cByteBuffer & a_ByteBuffer)
 	}
 
 	// Serialize the response into a packet:
-	Json::FastWriter Writer;
 	cPacketizer Pkt(*this, pktStatusResponse);
-	Pkt.WriteString(Writer.write(ResponseValue));
+	Pkt.WriteString(JsonUtils::WriteFastString(ResponseValue));
 }
 
 
@@ -1391,4 +1416,56 @@ void cProtocol_1_12_2::SendKeepAlive(UInt32 a_PingID)
 
 	cPacketizer Pkt(*this, pktKeepAlive);
 	Pkt.WriteBEInt64(a_PingID);
+}
+
+
+
+
+
+void cProtocol_1_12_2::SendUnlockRecipe(UInt32 a_RecipeID)
+{
+	ASSERT(m_State == 3);  // In game mode?
+
+	auto ProtocolRecipeId = cRoot::Get()->GetRecipeMapper()->GetProtocolRecipeId(a_RecipeID, m_Client->GetProtocolVersion());
+	if (ProtocolRecipeId.has_value())
+	{
+		cPacketizer Pkt(*this, pktUnlockRecipe);
+		Pkt.WriteVarInt32(1);
+		Pkt.WriteBool(true);
+		Pkt.WriteBool(false);
+		Pkt.WriteVarInt32(1);
+		Pkt.WriteVarInt32(ProtocolRecipeId.value());
+	}
+}
+
+
+
+
+
+void cProtocol_1_12_2::SendInitRecipes(UInt32 a_RecipeID)
+{
+	ASSERT(m_State == 3);  // In game mode?
+
+	auto ProtocolRecipeId = cRoot::Get()->GetRecipeMapper()->GetProtocolRecipeId(a_RecipeID, m_Client->GetProtocolVersion());
+	if (!ProtocolRecipeId.has_value())
+	{
+		return;
+	}
+
+	cPacketizer Pkt(*this, pktUnlockRecipe);
+	Pkt.WriteVarInt32(0);
+	Pkt.WriteBool(true);
+	Pkt.WriteBool(false);
+	if (a_RecipeID == 0)
+	{
+		Pkt.WriteVarInt32(0);
+		Pkt.WriteVarInt32(0);
+	}
+	else
+	{
+		Pkt.WriteVarInt32(1);
+		Pkt.WriteVarInt32(ProtocolRecipeId.value());
+		Pkt.WriteVarInt32(1);
+		Pkt.WriteVarInt32(ProtocolRecipeId.value());
+	}
 }

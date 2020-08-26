@@ -21,7 +21,7 @@ protocol version instance and redirects everything to it. */
 class cProtocolRecognizer:
 	public cProtocol
 {
-	typedef cProtocol super;
+	using Super = cProtocol;
 
 public:
 	enum
@@ -60,19 +60,19 @@ public:
 	virtual void SendChat                       (const cCompositeChat & a_Message, eChatType a_Type, bool a_ShouldUseChatPrefixes) override;
 	virtual void SendChatRaw                    (const AString & a_MessageRaw, eChatType a_Type) override;
 	virtual void SendChunkData                  (int a_ChunkX, int a_ChunkZ, cChunkDataSerializer & a_Serializer) override;
-	virtual void SendCollectEntity              (const cEntity & a_Entity, const cPlayer & a_Player, int a_Count) override;
+	virtual void SendCollectEntity              (const cEntity & a_Collected, const cEntity & a_Collector, unsigned a_Count) override;
 	virtual void SendDestroyEntity              (const cEntity & a_Entity) override;
 	virtual void SendDetachEntity               (const cEntity & a_Entity, const cEntity & a_PreviousVehicle) override;
 	virtual void SendDisconnect                 (const AString & a_Reason) override;
+	virtual void SendEntityAnimation            (const cEntity & a_Entity, char a_Animation) override;
 	virtual void SendEditSign                   (int a_BlockX, int a_BlockY, int a_BlockZ) override;  ///< Request the client to open up the sign editor for the sign (1.6+)
 	virtual void SendEntityEffect               (const cEntity & a_Entity, int a_EffectID, int a_Amplifier, int a_Duration) override;
 	virtual void SendEntityEquipment            (const cEntity & a_Entity, short a_SlotNum, const cItem & a_Item) override;
 	virtual void SendEntityHeadLook             (const cEntity & a_Entity) override;
 	virtual void SendEntityLook                 (const cEntity & a_Entity) override;
 	virtual void SendEntityMetadata             (const cEntity & a_Entity) override;
+	virtual void SendEntityPosition             (const cEntity & a_Entity) override;
 	virtual void SendEntityProperties           (const cEntity & a_Entity) override;
-	virtual void SendEntityRelMove              (const cEntity & a_Entity, char a_RelX, char a_RelY, char a_RelZ) override;
-	virtual void SendEntityRelMoveLook          (const cEntity & a_Entity, char a_RelX, char a_RelY, char a_RelZ) override;
 	virtual void SendEntityStatus               (const cEntity & a_Entity, char a_Status) override;
 	virtual void SendEntityVelocity             (const cEntity & a_Entity) override;
 	virtual void SendExplosion                  (double a_BlockX, double a_BlockY, double a_BlockZ, float a_Radius, const cVector3iArray & a_BlocksAffected, const Vector3d & a_PlayerMotion) override;
@@ -89,9 +89,7 @@ public:
 	virtual void SendParticleEffect             (const AString & a_ParticleName, float a_SrcX, float a_SrcY, float a_SrcZ, float a_OffsetX, float a_OffsetY, float a_OffsetZ, float a_ParticleData, int a_ParticleAmount) override;
 	virtual void SendParticleEffect             (const AString & a_ParticleName, Vector3f a_Src, Vector3f a_Offset, float a_ParticleData, int a_ParticleAmount, std::array<int, 2> a_Data) override;
 	virtual void SendPaintingSpawn              (const cPainting & a_Painting) override;
-	virtual void SendPickupSpawn                (const cPickup & a_Pickup) override;
 	virtual void SendPlayerAbilities            (void) override;
-	virtual void SendEntityAnimation            (const cEntity & a_Entity, char a_Animation) override;
 	virtual void SendPlayerListAddPlayer        (const cPlayer & a_Player) override;
 	virtual void SendPlayerListRemovePlayer     (const cPlayer & a_Player) override;
 	virtual void SendPlayerListUpdateGameMode   (const cPlayer & a_Player) override;
@@ -104,6 +102,7 @@ public:
 	virtual void SendPluginMessage              (const AString & a_Channel, const AString & a_Message) override;
 	virtual void SendRemoveEntityEffect         (const cEntity & a_Entity, int a_EffectID) override;
 	virtual void SendResetTitle                 (void) override;
+	virtual void SendResourcePack               (const AString & a_ResourcePackUrl) override;
 	virtual void SendRespawn                    (eDimension a_Dimension) override;
 	virtual void SendExperience                 (void) override;
 	virtual void SendExperienceOrb              (const cExpOrb & a_ExpOrb) override;
@@ -116,13 +115,10 @@ public:
 	virtual void SendSetRawTitle                (const AString & a_Title) override;
 	virtual void SendSoundEffect                (const AString & a_SoundName, double a_X, double a_Y, double a_Z, float a_Volume, float a_Pitch) override;
 	virtual void SendSoundParticleEffect        (const EffectID a_EffectID, int a_SrcX, int a_SrcY, int a_SrcZ, int a_Data) override;
-	virtual void SendSpawnFallingBlock          (const cFallingBlock & a_FallingBlock) override;
+	virtual void SendSpawnEntity                (const cEntity & a_Entity) override;
 	virtual void SendSpawnMob                   (const cMonster & a_Mob) override;
-	virtual void SendSpawnObject                (const cEntity & a_Entity, char a_ObjectType, int a_ObjectData, Byte a_Yaw, Byte a_Pitch) override;
-	virtual void SendSpawnVehicle               (const cEntity & a_Vehicle, char a_VehicleType, char a_VehicleSubType) override;
 	virtual void SendStatistics                 (const cStatManager & a_Manager) override;
 	virtual void SendTabCompletionResults       (const AStringVector & a_Results) override;
-	virtual void SendTeleportEntity             (const cEntity & a_Entity) override;
 	virtual void SendThunderbolt                (int a_BlockX, int a_BlockY, int a_BlockZ) override;
 	virtual void SendTitleTimes                 (int a_FadeInTicks, int a_DisplayTicks, int a_FadeOutTicks) override;
 	virtual void SendTimeUpdate                 (Int64 a_WorldAge, Int64 a_TimeOfDay, bool a_DoDaylightCycle) override;
@@ -131,6 +127,8 @@ public:
 	virtual void SendUpdateBlockEntity          (cBlockEntity & a_BlockEntity) override;
 	virtual void SendUpdateSign                 (int a_BlockX, int a_BlockY, int a_BlockZ, const AString & a_Line1, const AString & a_Line2, const AString & a_Line3, const AString & a_Line4) override;
 	virtual void SendUseBed                     (const cEntity & a_Entity, int a_BlockX, int a_BlockY, int a_BlockZ) override;
+	virtual void SendUnlockRecipe               (UInt32 a_RecipeID) override;
+	virtual void SendInitRecipes                (UInt32 a_RecipeID) override;
 	virtual void SendWeather                    (eWeather a_Weather) override;
 	virtual void SendWholeInventory             (const cWindow & a_Window) override;
 	virtual void SendWindowClose                (const cWindow & a_Window) override;
@@ -140,7 +138,6 @@ public:
 	virtual AString GetAuthServerID(void) override;
 
 	virtual void SendData(const char * a_Data, size_t a_Size) override;
-
 
 protected:
 

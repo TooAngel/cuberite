@@ -6,6 +6,7 @@
 #include "Globals.h"
 #include "VillageGen.h"
 #include "PieceGeneratorBFSTree.h"
+#include "../BlockInfo.h"
 
 
 
@@ -36,16 +37,18 @@ per-village density setting, the cVillage class itself implements the cPiecePool
 calls to the underlying cVillagePiecePool, after processing the density check.
 */
 
-class cVillagePiecePool :
+class cVillagePiecePool:
 	public cPrefabPiecePool
 {
-	typedef cPrefabPiecePool super;
+	using Super = cPrefabPiecePool;
+
 public:
+
 	cVillagePiecePool(
 		const cPrefab::sDef * a_PieceDefs,         size_t a_NumPieceDefs,
 		const cPrefab::sDef * a_StartingPieceDefs, size_t a_NumStartingPieceDefs
-	) :
-		super(a_PieceDefs, a_NumPieceDefs, a_StartingPieceDefs, a_NumStartingPieceDefs)
+	):
+		Super(a_PieceDefs, a_NumPieceDefs, a_StartingPieceDefs, a_NumStartingPieceDefs)
 	{
 		AddRoadPieces();
 	}
@@ -106,13 +109,14 @@ public:
 
 
 
-class cVillageGen::cVillage :
+class cVillageGen::cVillage:
 	public cGridStructGen::cStructure,
 	protected cPiecePool
 {
-	typedef cGridStructGen::cStructure super;
+	using Super = cGridStructGen::cStructure;
 
 public:
+
 	cVillage(
 		int a_Seed,
 		int a_GridX, int a_GridZ,
@@ -122,8 +126,8 @@ public:
 		int a_Density,
 		cVillagePiecePool & a_Prefabs,
 		cTerrainHeightGenPtr a_HeightGen
-	) :
-		super(a_GridX, a_GridZ, a_OriginX, a_OriginZ),
+	):
+		Super(a_GridX, a_GridZ, a_OriginX, a_OriginZ),
 		m_Seed(a_Seed),
 		m_Noise(a_Seed),
 		m_MaxSize(a_MaxSize),
@@ -133,7 +137,7 @@ public:
 			{a_OriginX + a_MaxSize, cChunkDef::Height - 1, a_OriginZ + a_MaxSize}
 		),
 		m_Prefabs(a_Prefabs),
-		m_HeightGen(a_HeightGen)
+		m_HeightGen(std::move(a_HeightGen))
 	{
 		// Generate the pieces for this village; don't care about the Y coord:
 		cPieceGeneratorBFSTree pg(*this, a_Seed);
@@ -338,14 +342,14 @@ cVillageGen::cVillageGen(
 	int a_SeaLevel,
 	const AStringVector & a_PrefabsToLoad
 ) :
-	super(a_Seed, a_GridSize, a_GridSize, a_MaxOffset, a_MaxOffset, a_MaxSize, a_MaxSize, 100),
+	Super(a_Seed, a_GridSize, a_GridSize, a_MaxOffset, a_MaxOffset, a_MaxSize, a_MaxSize, 100),
 	m_RandNoise(a_Seed + 1000),
 	m_MaxDepth(a_MaxDepth),
 	m_MaxSize(a_MaxSize),
 	m_MinDensity(a_MinDensity),
 	m_MaxDensity(a_MaxDensity),
-	m_BiomeGen(a_BiomeGen),
-	m_HeightGen(a_HeightGen)
+	m_BiomeGen(std::move(a_BiomeGen)),
+	m_HeightGen(std::move(a_HeightGen))
 {
 	for (const auto & toLoad: a_PrefabsToLoad)
 	{

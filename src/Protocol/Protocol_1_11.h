@@ -21,21 +21,25 @@ Declares the 1.11 protocol classes:
 
 
 
-class cProtocol_1_11_0 :
+class cProtocol_1_11_0:
 	public cProtocol_1_10_0
 {
-	typedef cProtocol_1_10_0 Super;
+	using Super = cProtocol_1_10_0;
 
 public:
+
 	cProtocol_1_11_0(cClientHandle * a_Client, const AString &a_ServerAddress, UInt16 a_ServerPort, UInt32 a_State);
 
-	virtual void SendCollectEntity(const cEntity & a_Entity, const cPlayer & a_Player, int a_Count) override;
+	virtual void SendCollectEntity(const cEntity & a_Collected, const cEntity & a_Collector, unsigned a_Count) override;
 	virtual void SendHideTitle    (void) override;
 	virtual void SendResetTitle   (void) override;
 	virtual void SendSpawnMob     (const cMonster & a_Mob) override;
 	virtual void SendTitleTimes   (int a_FadeInTicks, int a_DisplayTicks, int a_FadeOutTicks) override;
 
 protected:
+
+	/** Converts eMonsterType to protocol-specific mob IDs */
+	virtual UInt32 GetProtocolMobType(eMonsterType a_MobType) override;
 
 	virtual void HandlePacketBlockPlace   (cByteBuffer & a_ByteBuffer) override;
 	virtual void HandlePacketStatusRequest(cByteBuffer & a_ByteBuffer) override;
@@ -49,12 +53,13 @@ protected:
 
 
 
-class cProtocol_1_11_1 :
+class cProtocol_1_11_1:
 	public cProtocol_1_11_0
 {
-	typedef cProtocol_1_11_0 Super;
+	using Super = cProtocol_1_11_0;
 
 public:
+
 	cProtocol_1_11_1(cClientHandle * a_Client, const AString & a_ServerAddress, UInt16 a_ServerPort, UInt32 a_State);
 
 	virtual void HandlePacketStatusRequest(cByteBuffer & a_ByteBuffer) override;

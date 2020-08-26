@@ -12,13 +12,13 @@ template <bool NeedsLightToGrow>
 class cBlockPlant:
 	public cBlockHandler
 {
-	using super = cBlockHandler;
+	using Super = cBlockHandler;
 
 
 public:
 
 	cBlockPlant(BLOCKTYPE a_BlockType):
-		super(a_BlockType)
+		Super(a_BlockType)
 	{
 	}
 
@@ -26,20 +26,25 @@ public:
 
 
 
-	virtual void OnUpdate(cChunkInterface & a_ChunkInterface, cWorldInterface & a_WorldInterface, cBlockPluginInterface & a_PluginInterface, cChunk & a_Chunk, int a_RelX, int a_RelY, int a_RelZ) override
+	virtual void OnUpdate(
+		cChunkInterface & a_ChunkInterface,
+		cWorldInterface & a_WorldInterface,
+		cBlockPluginInterface & a_PluginInterface,
+		cChunk & a_Chunk,
+		const Vector3i a_RelPos
+	) override
 	{
-		Vector3i relPos(a_RelX, a_RelY, a_RelZ);
-		auto action = CanGrow(a_Chunk, relPos);
-		switch (action)
+		auto Action = CanGrow(a_Chunk, a_RelPos);
+		switch (Action)
 		{
 			case paGrowth:
 			{
-				Grow(a_Chunk, relPos);
+				Grow(a_Chunk, a_RelPos);
 				break;
 			}
 			case paDeath:
 			{
-				a_ChunkInterface.DigBlock(a_WorldInterface, a_Chunk.RelativeToAbsolute(relPos));
+				a_ChunkInterface.DigBlock(a_WorldInterface, a_Chunk.RelativeToAbsolute(a_RelPos));
 				break;
 			}
 			case paStay: break;  // do nothing

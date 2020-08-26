@@ -543,7 +543,7 @@ void cSlotAreaCrafting::Clicked(cPlayer & a_Player, int a_SlotNum, eClickAction 
 		return;
 	}
 
-	super::Clicked(a_Player, a_SlotNum, a_ClickAction, a_ClickedItem);
+	Super::Clicked(a_Player, a_SlotNum, a_ClickAction, a_ClickedItem);
 	UpdateRecipe(a_Player);
 }
 
@@ -558,7 +558,7 @@ void cSlotAreaCrafting::DblClicked(cPlayer & a_Player, int a_SlotNum)
 		// Dbl-clicking the crafting result slot shouldn't collect items to hand
 		return;
 	}
-	super::DblClicked(a_Player, a_SlotNum);
+	Super::DblClicked(a_Player, a_SlotNum);
 }
 
 
@@ -590,7 +590,7 @@ void cSlotAreaCrafting::OnPlayerRemoved(cPlayer & a_Player)
 void cSlotAreaCrafting::SetSlot(int a_SlotNum, cPlayer & a_Player, const cItem & a_Item)
 {
 	// Update the recipe after setting the slot, if the slot is not the result slot:
-	super::SetSlot(a_SlotNum, a_Player, a_Item);
+	Super::SetSlot(a_SlotNum, a_Player, a_Item);
 	if (a_SlotNum != 0)
 	{
 		UpdateRecipe(a_Player);
@@ -665,6 +665,7 @@ void cSlotAreaCrafting::ShiftClickedResult(cPlayer & a_Player)
 	{
 		return;
 	}
+	a_Player.AddKnownItem(Result);
 	cItem * PlayerSlots = GetPlayerSlots(a_Player) + 1;
 	for (;;)
 	{
@@ -780,6 +781,70 @@ void cSlotAreaCrafting::HandleCraftItem(const cItem & a_Result, cPlayer & a_Play
 
 
 
+void cSlotAreaCrafting::LoadRecipe(cPlayer & a_Player, UInt32 a_RecipeId)
+{
+	if (a_RecipeId == 0)
+	{
+		return;
+	}
+	auto Recipe = cRoot::Get()->GetCraftingRecipes()->GetRecipeById(a_RecipeId);
+
+	int NumItems = 0;
+	ClearCraftingGrid(a_Player);
+
+	for (auto itrS = Recipe->m_Ingredients.begin(); itrS != Recipe->m_Ingredients.end(); ++itrS)
+	{
+		cItem * FoundItem = a_Player.GetInventory().FindItem(itrS->m_Item);
+		if (FoundItem == nullptr)
+		{
+			ClearCraftingGrid(a_Player);
+			break;
+		}
+		cItem Item = FoundItem->CopyOne();
+		++NumItems;
+		int pos = 1 + itrS->x + m_GridSize * itrS->y;
+		// Assuming there are ether shaped or unshaped recipes, no mixed ones
+		if ((itrS->x == -1) && (itrS->y == -1))
+		{
+			pos = NumItems;
+		}
+		// Handle x wildcard
+		else if (itrS->x == -1)
+		{
+			for (int i = 0; i < m_GridSize; i++)
+			{
+				pos = 1 + i + m_GridSize * itrS->y;
+				auto itemCheck = GetSlot(pos, a_Player);
+				if (itemCheck->IsEmpty())
+				{
+					break;
+				}
+			}
+		}
+		SetSlot(pos, a_Player, Item);
+		a_Player.GetInventory().RemoveItem(Item);
+	}
+}
+
+
+
+
+
+void cSlotAreaCrafting::ClearCraftingGrid(cPlayer & a_Player)
+{
+	for (int pos = 1; pos <= m_GridSize * m_GridSize; pos++)
+	{
+		auto Item = GetSlot(pos, a_Player);
+		if (Item->m_ItemCount > 0)
+		{
+			a_Player.GetInventory().AddItem(*Item);
+			SetSlot(pos, a_Player, cItem());
+		}
+	}
+}
+
+
+
 ////////////////////////////////////////////////////////////////////////////////
 // cSlotAreaAnvil:
 
@@ -799,7 +864,7 @@ void cSlotAreaAnvil::Clicked(cPlayer & a_Player, int a_SlotNum, eClickAction a_C
 	ASSERT((a_SlotNum >= 0) && (a_SlotNum < GetNumSlots()));
 	if (a_SlotNum != 2)
 	{
-		super::Clicked(a_Player, a_SlotNum, a_ClickAction, a_ClickedItem);
+		Super::Clicked(a_Player, a_SlotNum, a_ClickAction, a_ClickedItem);
 		UpdateResult(a_Player);
 		return;
 	}
@@ -895,7 +960,7 @@ void cSlotAreaAnvil::ShiftClicked(cPlayer & a_Player, int a_SlotNum, const cItem
 {
 	if (a_SlotNum != 2)
 	{
-		super::ShiftClicked(a_Player, a_SlotNum, a_ClickedItem);
+		Super::ShiftClicked(a_Player, a_SlotNum, a_ClickedItem);
 		UpdateResult(a_Player);
 		return;
 	}
@@ -996,14 +1061,12 @@ void cSlotAreaAnvil::OnTakeResult(cPlayer & a_Player)
 	m_MaximumCost = 0;
 	static_cast<cAnvilWindow &>(m_ParentWindow).SetRepairedItemName("", nullptr);
 
-	int PosX, PosY, PosZ;
-	static_cast<cAnvilWindow &>(m_ParentWindow).GetBlockPos(PosX, PosY, PosZ);
+	const Vector3i BlockPos = static_cast<cAnvilWindow &>(m_ParentWindow).GetBlockPos();
 
 	BLOCKTYPE Block;
 	NIBBLETYPE BlockMeta;
-	a_Player.GetWorld()->GetBlockTypeMeta(PosX, PosY, PosZ, Block, BlockMeta);
+	a_Player.GetWorld()->GetBlockTypeMeta(BlockPos, Block, BlockMeta);
 
-	const Vector3i BlockPos{PosX, PosY, PosZ};
 	if (!a_Player.IsGameModeCreative() && (Block == E_BLOCK_ANVIL) && GetRandomProvider().RandBool(0.12))
 	{
 		NIBBLETYPE Orientation = BlockMeta & 0x3;
@@ -1013,13 +1076,13 @@ void cSlotAreaAnvil::OnTakeResult(cPlayer & a_Player)
 		if (AnvilDamage > 2)
 		{
 			// Anvil will break
-			a_Player.GetWorld()->SetBlock(PosX, PosY, PosZ, E_BLOCK_AIR, 0);
+			a_Player.GetWorld()->SetBlock(BlockPos, E_BLOCK_AIR, 0);
 			a_Player.GetWorld()->BroadcastSoundParticleEffect(EffectID::SFX_RANDOM_ANVIL_BREAK, BlockPos, 0);
 			a_Player.CloseWindow(false);
 		}
 		else
 		{
-			a_Player.GetWorld()->SetBlockMeta(PosX, PosY, PosZ, static_cast<NIBBLETYPE>(Orientation | (AnvilDamage << 2)));
+			a_Player.GetWorld()->SetBlockMeta(BlockPos, static_cast<NIBBLETYPE>(Orientation | (AnvilDamage << 2)));
 			a_Player.GetWorld()->BroadcastSoundParticleEffect(EffectID::SFX_RANDOM_ANVIL_USE, BlockPos, 0);
 		}
 	}
@@ -1052,7 +1115,7 @@ bool cSlotAreaAnvil::CanTakeResultItem(cPlayer & a_Player)
 void cSlotAreaAnvil::OnPlayerRemoved(cPlayer & a_Player)
 {
 	TossItems(a_Player, 0, 2);
-	super::OnPlayerRemoved(a_Player);
+	Super::OnPlayerRemoved(a_Player);
 }
 
 
@@ -1407,11 +1470,9 @@ void cSlotAreaBeacon::OnSlotChanged(cItemGrid * a_ItemGrid, int a_SlotNum)
 ////////////////////////////////////////////////////////////////////////////////
 // cSlotAreaEnchanting:
 
-cSlotAreaEnchanting::cSlotAreaEnchanting(cWindow & a_ParentWindow, int a_BlockX, int a_BlockY, int a_BlockZ) :
+cSlotAreaEnchanting::cSlotAreaEnchanting(cWindow & a_ParentWindow, Vector3i a_BlockPos) :
 	cSlotAreaTemporary(2, a_ParentWindow),
-	m_BlockX(a_BlockX),
-	m_BlockY(a_BlockY),
-	m_BlockZ(a_BlockZ)
+	m_BlockPos(a_BlockPos)
 {
 }
 
@@ -1580,7 +1641,7 @@ void cSlotAreaEnchanting::DistributeStack(cItem & a_ItemStack, cPlayer & a_Playe
 
 void cSlotAreaEnchanting::OnPlayerAdded(cPlayer & a_Player)
 {
-	super::OnPlayerAdded(a_Player);
+	Super::OnPlayerAdded(a_Player);
 	UpdateResult(a_Player);
 }
 
@@ -1590,10 +1651,10 @@ void cSlotAreaEnchanting::OnPlayerAdded(cPlayer & a_Player)
 
 void cSlotAreaEnchanting::OnPlayerRemoved(cPlayer & a_Player)
 {
-	// Toss the item in the enchanting slot
-	TossItems(a_Player, 0, 1);
+	// Toss the item in the enchanting slot, as well as lapis
+	TossItems(a_Player, 0, m_NumSlots);
 
-	super::OnPlayerRemoved(a_Player);
+	Super::OnPlayerRemoved(a_Player);
 }
 
 
@@ -1602,7 +1663,7 @@ void cSlotAreaEnchanting::OnPlayerRemoved(cPlayer & a_Player)
 
 void cSlotAreaEnchanting::SetSlot(int a_SlotNum, cPlayer & a_Player, const cItem & a_Item)
 {
-	super::SetSlot(a_SlotNum, a_Player, a_Item);
+	Super::SetSlot(a_SlotNum, a_Player, a_Item);
 	UpdateResult(a_Player);
 }
 
@@ -1644,7 +1705,7 @@ int cSlotAreaEnchanting::GetBookshelvesCount(cWorld & a_World)
 {
 	int Bookshelves = 0;
 	cBlockArea Area;
-	Area.Read(a_World, m_BlockX - 2, m_BlockX + 2, m_BlockY, m_BlockY + 1, m_BlockZ - 2, m_BlockZ + 2);
+	Area.Read(a_World, m_BlockPos - Vector3i(2, 0, 2), m_BlockPos + Vector3i(2, 1, 2));
 
 	static const struct
 	{
@@ -1878,7 +1939,7 @@ void cSlotAreaFurnace::Clicked(cPlayer & a_Player, int a_SlotNum, eClickAction a
 		return;
 	}
 
-	super::Clicked(a_Player, a_SlotNum, a_ClickAction, a_ClickedItem);
+	Super::Clicked(a_Player, a_SlotNum, a_ClickAction, a_ClickedItem);
 }
 
 
@@ -2056,7 +2117,7 @@ void cSlotAreaBrewingstand::Clicked(cPlayer & a_Player, int a_SlotNum, eClickAct
 				{
 					HandleBrewedItem(a_Player, Slot);
 				}
-				super::ShiftClicked(a_Player, a_SlotNum, Slot);
+				Super::ShiftClicked(a_Player, a_SlotNum, Slot);
 				break;
 			}
 			default:
@@ -2079,7 +2140,7 @@ void cSlotAreaBrewingstand::Clicked(cPlayer & a_Player, int a_SlotNum, eClickAct
 			case caShiftLeftClick:
 			case caShiftRightClick:
 			{
-				super::ShiftClicked(a_Player, a_SlotNum, Slot);
+				Super::ShiftClicked(a_Player, a_SlotNum, Slot);
 				break;
 			}
 			default:
@@ -2102,7 +2163,7 @@ void cSlotAreaBrewingstand::Clicked(cPlayer & a_Player, int a_SlotNum, eClickAct
 			case caShiftLeftClick:
 			case caShiftRightClick:
 			{
-				super::ShiftClicked(a_Player, a_SlotNum, Slot);
+				Super::ShiftClicked(a_Player, a_SlotNum, Slot);
 				break;
 			}
 			default:
@@ -2117,7 +2178,7 @@ void cSlotAreaBrewingstand::Clicked(cPlayer & a_Player, int a_SlotNum, eClickAct
 		}
 	}
 
-	super::Clicked(a_Player, a_SlotNum, a_ClickAction, a_ClickedItem);
+	Super::Clicked(a_Player, a_SlotNum, a_ClickAction, a_ClickedItem);
 }
 
 
@@ -2296,8 +2357,7 @@ void cSlotAreaInventoryBase::Clicked(cPlayer & a_Player, int a_SlotNum, eClickAc
 	}
 
 	// Survival inventory and all other windows' inventory has the same handling as normal slot areas
-	super::Clicked(a_Player, a_SlotNum, a_ClickAction, a_ClickedItem);
-	return;
+	Super::Clicked(a_Player, a_SlotNum, a_ClickAction, a_ClickedItem);
 }
 
 
@@ -2469,7 +2529,7 @@ bool cSlotAreaArmor::CanPlaceArmorInSlot(int a_SlotNum, const cItem & a_Item)
 // cSlotAreaItemGrid:
 
 cSlotAreaItemGrid::cSlotAreaItemGrid(cItemGrid & a_ItemGrid, cWindow & a_ParentWindow) :
-	super(a_ItemGrid.GetNumSlots(), a_ParentWindow),
+	Super(a_ItemGrid.GetNumSlots(), a_ParentWindow),
 	m_ItemGrid(a_ItemGrid)
 {
 	m_ItemGrid.AddListener(*this);
@@ -2620,10 +2680,7 @@ void cSlotAreaTemporary::TossItems(cPlayer & a_Player, int a_Begin, int a_End)
 		Item.Empty();
 	}  // for i - itr->second[]
 
-	double vX = 0, vY = 0, vZ = 0;
-	EulerToVector(-a_Player.GetYaw(), a_Player.GetPitch(), vZ, vX, vY);
-	vY = -vY * 2 + 1.f;
-	a_Player.GetWorld()->SpawnItemPickups(Drops, a_Player.GetPosX(), a_Player.GetPosY() + 1.6f, a_Player.GetPosZ(), vX * 3, vY * 3, vZ * 3, true);  // 'true' because player created
+	a_Player.TossItems(Drops);
 }
 
 
@@ -2757,8 +2814,3 @@ void cSlotAreaHorse::DistributeStack(cItem & a_ItemStack, cPlayer & a_Player, bo
 		--a_ItemStack.m_ItemCount;
 	}
 }
-
-
-
-
-

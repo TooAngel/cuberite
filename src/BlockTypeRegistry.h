@@ -12,6 +12,7 @@
 
 
 // fwd:
+class cBlockHandler;
 class BlockState;
 
 
@@ -49,9 +50,9 @@ public:
 	);
 
 	// Simple getters:
-	const AString & pluginName() const { return mPluginName; }
-	const AString & blockTypeName() const { return mBlockTypeName; }
-	std::shared_ptr<cBlockHandler> handler() const { return mHandler; }
+	const AString & pluginName() const { return m_PluginName; }
+	const AString & blockTypeName() const { return m_BlockTypeName; }
+	std::shared_ptr<cBlockHandler> handler() const { return m_Handler; }
 
 	/** Sets (creates or updates) a static hint.
 	Hints provided by callbacks are unaffected by this - callbacks are "higher priority", they overwrite anything set here.
@@ -66,21 +67,21 @@ public:
 private:
 
 	/** The name of the plugin that registered the block. */
-	AString mPluginName;
+	AString m_PluginName;
 
 	/** The name of the block type, such as "minecraft:redstone_lamp" */
-	AString mBlockTypeName;
+	AString m_BlockTypeName;
 
 	/** The callbacks to call for various interaction. */
-	std::shared_ptr<cBlockHandler> mHandler;
+	std::shared_ptr<cBlockHandler> m_Handler;
 
 	/** Optional static hints for any subsystem to use, such as "IsSnowable" -> "1".
-	Hint callbacks are of higher priority than mHints - if a hint is provided by a mHintCallback, its value in mHints is ignored. */
-	std::map<AString, AString> mHints;
+	Hint callbacks are of higher priority than m_Hints - if a hint is provided by a m_HintCallback, its value in m_Hints is ignored. */
+	std::map<AString, AString> m_Hints;
 
 	/** The callbacks for dynamic evaluation of hints, such as "LightValue" -> function(BlockTypeName, BlockState).
-	Hint callbacks are of higher priority than mHints - if a hint is provided by a mHintCallback, its value in mHints is ignored. */
-	std::map<AString, HintCallback> mHintCallbacks;
+	Hint callbacks are of higher priority than m_Hints - if a hint is provided by a m_HintCallback, its value in m_Hints is ignored. */
+	std::map<AString, HintCallback> m_HintCallbacks;
 };
 
 
@@ -143,10 +144,10 @@ private:
 
 	/** The actual block type registry.
 	Maps the BlockTypeName to the BlockInfo instance. */
-	std::map<AString, std::shared_ptr<BlockInfo>> mRegistry;
+	std::map<AString, std::shared_ptr<BlockInfo>> m_Registry;
 
-	/** The CS that protects mRegistry against multithreaded access. */
-	cCriticalSection mCSRegistry;
+	/** The CS that protects m_Registry against multithreaded access. */
+	cCriticalSection m_CSRegistry;
 };
 
 
@@ -163,26 +164,26 @@ public:
 	/** Creates a new instance of the exception that provides info on both the original registration and the newly attempted
 	registration that caused the failure. */
 	AlreadyRegisteredException(
-		std::shared_ptr<BlockInfo> aPreviousRegistration,
-		std::shared_ptr<BlockInfo> aNewRegistration
+		const std::shared_ptr<BlockInfo> & aPreviousRegistration,
+		const std::shared_ptr<BlockInfo> & aNewRegistration
 	);
 
 	// Simple getters:
-	std::shared_ptr<BlockInfo> previousRegistration() const { return mPreviousRegistration; }
-	std::shared_ptr<BlockInfo> newRegistration()      const { return mNewRegistration; }
+	std::shared_ptr<BlockInfo> previousRegistration() const { return m_PreviousRegistration; }
+	std::shared_ptr<BlockInfo> newRegistration()      const { return m_NewRegistration; }
 
 
 private:
 
-	std::shared_ptr<BlockInfo> mPreviousRegistration;
-	std::shared_ptr<BlockInfo> mNewRegistration;
+	std::shared_ptr<BlockInfo> m_PreviousRegistration;
+	std::shared_ptr<BlockInfo> m_NewRegistration;
 
 
 	/** Returns the general exception message formatted by the two registrations.
 	The output is used when logging. */
 	static AString message(
-		std::shared_ptr<BlockInfo> aPreviousRegistration,
-		std::shared_ptr<BlockInfo> aNewRegistration
+		const std::shared_ptr<BlockInfo> & aPreviousRegistration,
+		const std::shared_ptr<BlockInfo> & aNewRegistration
 	);
 };
 
@@ -206,10 +207,10 @@ public:
 	);
 
 	// Simple getters:
-	const AString & blockTypeName() const { return mBlockTypeName; }
+	const AString & blockTypeName() const { return m_BlockTypeName; }
 
 
 private:
 
-	const AString mBlockTypeName;
+	const AString m_BlockTypeName;
 };

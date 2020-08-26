@@ -24,12 +24,18 @@ class cTeam;
 
 
 // tolua_begin
-class cPlayer :
+class cPlayer:
 	public cPawn
 {
-	typedef cPawn super;
+
+	// tolua_end
+
+	using Super = cPawn;
+
+	// tolua_begin
 
 public:
+
 	static const int MAX_HEALTH;
 
 	static const int MAX_FOOD_LEVEL;
@@ -42,7 +48,7 @@ public:
 	CLASS_PROTODEF(cPlayer)
 
 
-	cPlayer(cClientHandlePtr a_Client, const AString & a_PlayerName);
+	cPlayer(const cClientHandlePtr & a_Client, const AString & a_PlayerName);
 
 	virtual bool Initialize(OwnedEntity a_Self, cWorld & a_World) override;
 
@@ -165,6 +171,9 @@ public:
 	a_PitchDegrees is clipped to range [-180, +180) but the client only uses [-90, +90]
 	*/
 	void SendRotation(double a_YawDegrees, double a_PitchDegrees);
+
+	/** Spectates the target entity. If a_Target is nullptr or a pointer to self, end spectation. */
+	void SpectateEntity(cEntity * a_Target);
 
 	/** Returns the position where projectiles thrown by this player should start, player eye position + adjustment */
 	Vector3d GetThrowStartPos(void) const;
@@ -310,6 +319,13 @@ public:
 	/** tosses the item in the selected hotbar slot */
 	void TossEquippedItem(char a_Amount = 1);
 
+	/** Removes one item from the the current equipped item stack, and attempts to add the specified item stack
+	back to the same slot. If it is not possible to place the item in the same slot, tries to place the specified
+	item elsewhere in the inventory. If this is not possible, then any remaining items are tossed. If the currently
+	equipped slot is empty, its contents are simply set to the given Item.
+	*/
+	void ReplaceOneEquippedItemTossRest(const cItem &);
+
 	/** tosses the item held in hand (when in UI windows) */
 	void TossHeldItem(char a_Amount = 1);
 
@@ -355,6 +371,9 @@ public:
 	UInt32 GetFloaterID(void) const { return m_FloaterID; }
 
 	// tolua_end
+
+	/** Tosses a list of items. */
+	void TossItems(const cItems & a_Items);
 
 	/** Sets a player's in-bed state
 	We can't be sure plugins will keep this value updated, so no exporting
@@ -578,6 +597,13 @@ public:
 	Otherwise it returns the dig speed (float GetDigSpeed(BLOCKTYPE a_Block)) divided by the block hardness (cBlockInfo::GetHardness(BLOCKTYPE a_Block)) divided by 30 if the player can harvest the block and divided by 100 if he can't. */
 	float GetPlayerRelativeBlockHardness(BLOCKTYPE a_Block);
 
+	/** get player explosion exposure rate */
+	virtual float GetExplosionExposureRate(Vector3d a_ExplosionPosition, float a_ExlosionPower) override;
+
+	/** Adds an Item to the list of known items.
+	If the item is already known, does nothing. */
+	void AddKnownItem(const cItem & a_Item);
+
 protected:
 
 	typedef std::vector<std::vector<AString> > AStringVectorVector;
@@ -731,6 +757,12 @@ protected:
 	/** The main hand of the player */
 	eMainHand m_MainHand;
 
+	/** List on known recipes as Ids */
+	std::set<UInt32> m_KnownRecipes;
+
+	/** List of known items as Ids */
+	std::set<cItem, cItem::sItemCompare> m_KnownItems;
+
 	virtual void DoMoveToWorld(const cEntity::sWorldChangeInfo & a_WorldChangeInfo) override;
 
 	/** Sets the speed and sends it to the client, so that they are forced to move so. */
@@ -750,15 +782,9 @@ protected:
 	/** Called in each tick if the player is fishing to make sure the floater dissapears when the player doesn't have a fishing rod as equipped item. */
 	void HandleFloater(void);
 
-	/** Tosses a list of items. */
-	void TossItems(const cItems & a_Items);
-
 	/** Returns the filename for the player data based on the UUID given.
 	This can be used both for online and offline UUIDs. */
 	AString GetUUIDFileName(const cUUID & a_UUID);
-
-	/** get player explosion exposure rate */
-	virtual float GetExplosionExposureRate(Vector3d a_ExplosionPosition, float a_ExlosionPower) override;
 private:
 
 	/** Pins the player to a_Location until Unfreeze() is called.
@@ -778,5 +804,9 @@ private:
 	In he is in water it gets divided by 5 except his tool is enchanted with aqa affinity.
 	If he is not on ground it also gets divided by 5. */
 	float GetDigSpeed(BLOCKTYPE a_Block);
+
+	/** Add the recipe Id to the known recipes.
+	If the recipe is already known, does nothing. */
+	void AddKnownRecipe(UInt32 RecipeId);
 
 } ;  // tolua_export

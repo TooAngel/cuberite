@@ -7,29 +7,38 @@
 
 
 
-class cBlockDeadBushHandler :
+class cBlockDeadBushHandler:
 	public cBlockHandler
 {
-	typedef cBlockHandler super;
+	using Super = cBlockHandler;
+
 public:
-	cBlockDeadBushHandler(BLOCKTYPE a_BlockType)
-		: cBlockHandler(a_BlockType)
+	cBlockDeadBushHandler(BLOCKTYPE a_BlockType):
+		Super(a_BlockType)
 	{
 	}
+
+
+
+
 
 	virtual bool DoesIgnoreBuildCollision(cChunkInterface & a_ChunkInterface, Vector3i a_Pos, cPlayer & a_Player, NIBBLETYPE a_Meta) override
 	{
 		return true;
 	}
 
-	virtual bool CanBeAt(cChunkInterface & a_ChunkInterface, int a_RelX, int a_RelY, int a_RelZ, const cChunk & a_Chunk) override
+
+
+
+
+	virtual bool CanBeAt(cChunkInterface & a_ChunkInterface, const Vector3i a_RelPos, const cChunk & a_Chunk) override
 	{
-		if (a_RelY <= 0)
+		if (a_RelPos.y <= 0)
 		{
 			return false;
 		}
 
-		BLOCKTYPE BelowBlock = a_Chunk.GetBlock(a_RelX, a_RelY - 1, a_RelZ);
+		BLOCKTYPE BelowBlock = a_Chunk.GetBlock(a_RelPos.addedY(-1));
 		switch (BelowBlock)
 		{
 			case E_BLOCK_CLAY:

@@ -107,7 +107,7 @@ void cHeiGenFlat::InitializeHeightGen(cIniFile & a_IniFile)
 // cHeiGenCache:
 
 cHeiGenCache::cHeiGenCache(cTerrainHeightGenPtr a_HeiGenToCache, size_t a_CacheSize) :
-	m_HeiGenToCache(a_HeiGenToCache),
+	m_HeiGenToCache(std::move(a_HeiGenToCache)),
 	m_CacheSize(a_CacheSize),
 	m_NumHits(0),
 	m_NumMisses(0),
@@ -219,7 +219,7 @@ bool cHeiGenCache::GetHeightAt(int a_ChunkX, int a_ChunkZ, int a_RelX, int a_Rel
 ////////////////////////////////////////////////////////////////////////////////
 // cHeiGenMultiCache:
 
-cHeiGenMultiCache::cHeiGenMultiCache(cTerrainHeightGenPtr a_HeiGenToCache, size_t a_SubCacheSize, size_t a_NumSubCaches):
+cHeiGenMultiCache::cHeiGenMultiCache(const cTerrainHeightGenPtr & a_HeiGenToCache, size_t a_SubCacheSize, size_t a_NumSubCaches):
 	m_NumSubCaches(a_NumSubCaches)
 {
 	// Create the individual sub-caches:
@@ -629,15 +629,16 @@ NOISE_DATATYPE cHeiGenBiomal::GetHeightAt(int a_RelX, int a_RelZ, int a_ChunkX, 
 class cHeiGenMinMax:
 	public cTerrainHeightGen
 {
-	typedef cTerrainHeightGen Super;
+	using Super = cTerrainHeightGen;
 
 	/** Size of the averaging process, in columns (for each direction). Must be less than 16. */
 	static const int AVERAGING_SIZE = 4;
 
 public:
+
 	cHeiGenMinMax(int a_Seed, cBiomeGenPtr a_BiomeGen):
 		m_Noise(a_Seed),
-		m_BiomeGen(a_BiomeGen),
+		m_BiomeGen(std::move(a_BiomeGen)),
 		m_TotalWeight(0)
 	{
 		// Initialize the weights:
@@ -830,7 +831,7 @@ protected:
 ////////////////////////////////////////////////////////////////////////////////
 // cTerrainHeightGen:
 
-cTerrainHeightGenPtr cTerrainHeightGen::CreateHeightGen(cIniFile & a_IniFile, cBiomeGenPtr a_BiomeGen, int a_Seed, bool & a_CacheOffByDefault)
+cTerrainHeightGenPtr cTerrainHeightGen::CreateHeightGen(cIniFile & a_IniFile, const cBiomeGenPtr & a_BiomeGen, int a_Seed, bool & a_CacheOffByDefault)
 {
 	AString HeightGenName = a_IniFile.GetValueSet("Generator", "HeightGen", "");
 	if (HeightGenName.empty())

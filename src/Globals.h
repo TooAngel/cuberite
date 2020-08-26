@@ -8,6 +8,12 @@
 
 
 
+#pragma once
+
+
+
+
+
 // Compiler-dependent stuff:
 #if defined(_MSC_VER)
 	// Disable some warnings that we don't care about:
@@ -36,17 +42,6 @@
 	// 2014_01_06 xoft: Disabled this warning because MSVC is stupid and reports it in obviously wrong places
 	// #pragma warning(3 : 4244)  // Conversion from 'type1' to 'type2', possible loss of data
 
-	#define OBSOLETE __declspec(deprecated)
-
-	#define NORETURN __declspec(noreturn)
-	#if (_MSC_VER < 1900)  // noexcept support was added in VS 2015
-		#define NOEXCEPT  throw()
-		#define CAN_THROW throw(...)
-	#else
-		#define NOEXCEPT  noexcept
-		#define CAN_THROW noexcept(false)
-	#endif
-
 	// Use non-standard defines in <cmath>
 	#define _USE_MATH_DEFINES
 
@@ -73,30 +68,10 @@
 	// TODO: Can GCC explicitly mark classes as abstract (no instances can be created)?
 	#define abstract
 
-	// override is part of c++11
-	#if __cplusplus < 201103L
-		#define override
-	#endif
-
-	#define OBSOLETE __attribute__((deprecated))
-
-	#define NORETURN __attribute((__noreturn__))
-	#define NOEXCEPT  noexcept
-	#define CAN_THROW noexcept(false)
-
 #else
 
 	#error "You are using an unsupported compiler, you might need to #define some stuff here for your compiler"
 
-#endif
-
-
-
-
-#ifdef  _DEBUG
-	#define NORETURNDEBUG NORETURN
-#else
-	#define NORETURNDEBUG
 #endif
 
 
@@ -173,27 +148,8 @@ template class SizeChecker<UInt8,  1>;
 		#undef GetFreeSpace
 	#endif  // GetFreeSpace
 #else
-	#include <sys/types.h>
-	#include <sys/time.h>
-	#include <sys/socket.h>
-	#include <netinet/in.h>
 	#include <arpa/inet.h>
-	#include <netdb.h>
-	#include <time.h>
-	#include <dirent.h>
-	#include <errno.h>
-	#include <iostream>
-	#include <cstring>
-	#include <pthread.h>
-	#include <semaphore.h>
-	#include <fcntl.h>
 	#include <unistd.h>
-#endif
-
-#if defined(ANDROID_NDK)
-	#define FILE_IO_PREFIX "/sdcard/Cuberite/"
-#else
-	#define FILE_IO_PREFIX ""
 #endif
 
 
@@ -235,48 +191,45 @@ template class SizeChecker<UInt8,  1>;
 
 
 // Common headers (part 1, without macros):
-#include "fmt/format.h"
+#include "fmt.h"
 #include "StringUtils.h"
+#include "LoggerSimple.h"
 #include "OSSupport/CriticalSection.h"
 #include "OSSupport/Event.h"
 #include "OSSupport/File.h"
 #include "OSSupport/StackTrace.h"
 
-#ifndef TEST_GLOBALS
+#ifdef TEST_GLOBALS
 
-	#include "LoggerSimple.h"
-
-#else
-	#include "fmt/printf.h"
-
-	// Logging functions
-	template <typename ... Args>
-	void LOG(const char * a_Format, const Args & ... a_Args)
+	// Basic logging function implementations
+	namespace Logger
 	{
-		fmt::printf(a_Format, a_Args...);
+
+	inline void LogFormat(
+		std::string_view a_Format, eLogLevel, fmt::format_args a_ArgList
+	)
+	{
+		fmt::vprint(a_Format, a_ArgList);
 		putchar('\n');
 		fflush(stdout);
 	}
 
-	#define LOGERROR   LOG
-	#define LOGWARNING LOG
-	#define LOGD       LOG
-	#define LOGINFO    LOG
-	#define LOGWARN    LOG
-
-	template <typename ... Args>
-	void FLOG(const char * a_Format, const Args & ... a_Args)
+	inline void LogPrintf(
+		std::string_view a_Format, eLogLevel, fmt::printf_args a_ArgList
+	)
 	{
-		fmt::print(a_Format, a_Args...);
+		fmt::vprintf(a_Format, a_ArgList);
 		putchar('\n');
 		fflush(stdout);
 	}
 
-	#define FLOGERROR   FLOG
-	#define FLOGWARNING FLOG
-	#define FLOGD       FLOG
-	#define FLOGINFO    FLOG
-	#define FLOGWARN    FLOG
+	inline void LogSimple(std::string_view a_Message, eLogLevel)
+	{
+		fmt::print("{}\n", a_Message);
+		fflush(stdout);
+	}
+
+	}  // namespace Logger
 
 #endif
 
@@ -373,15 +326,11 @@ typename std::enable_if<std::is_arithmetic<T>::value, C>::type CeilC(T a_Value)
 
 
 
-//temporary replacement for std::make_unique until we get c++14
+// TODO: Replace cpp14 with std at point of use
 
 namespace cpp14
 {
-	template <class T, class... Args>
-	std::unique_ptr<T> make_unique(Args&&... args)
-	{
-		return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
-	}
+using std::make_unique;
 }
 
 // a tick is 50 ms
@@ -396,6 +345,13 @@ using cTickTimeLong = std::chrono::duration<Int64,  cTickTime::period>;
 	#error TOLUA_EXPOSITION should never actually be defined
 #endif
 
+template <typename T>
+auto ToUnsigned(T a_Val)
+{
+	ASSERT(a_Val >= 0);
+	return static_cast<std::make_unsigned_t<T>>(a_Val);
+}
+
 
 
 
@@ -404,9 +360,3 @@ using cTickTimeLong = std::chrono::duration<Int64,  cTickTime::period>;
 #include "Vector3.h"
 #include "BiomeDef.h"
 #include "ChunkDef.h"
-#include "BlockID.h"
-#include "BlockInfo.h"
-
-
-
-

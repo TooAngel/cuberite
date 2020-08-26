@@ -1,12 +1,12 @@
+target_sources(
+	${CMAKE_PROJECT_NAME} PRIVATE
 
-set (SRCS
 	IncrementalRedstoneSimulator.cpp
-)
 
-set (HDRS
 	CommandBlockHandler.h
 	DoorHandler.h
 	DropSpenserHandler.h
+	HopperHandler.h
 	IncrementalRedstoneSimulator.h
 	RedstoneHandler.h
 	RedstoneSimulatorChunkData.h
@@ -21,15 +21,10 @@ set (HDRS
 	PistonHandler.h
 	SmallGateHandler.h
 	NoteBlockHandler.h
+	ObserverHandler.h
 	TNTHandler.h
 	TrappedChestHandler.h
 	TripwireHookHandler.h
 	PoweredRailHandler.h
 	PressurePlateHandler.h
 )
-
-if(NOT MSVC)
-	add_library(IncrementalRedstoneSimulator ${SRCS} ${HDRS})
-	target_link_libraries(IncrementalRedstoneSimulator fmt::fmt)
-endif()
-

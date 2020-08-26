@@ -19,15 +19,15 @@
 
 
 
-
 // tolua_begin
-class cPluginLua :
+class cPluginLua:
 	public cPlugin
 {
-	typedef cPlugin super;
+	// tolua_end
+
+	using Super = cPlugin;
 
 public:
-	// tolua_end
 
 	/** A RAII-style mutex lock for accessing the internal LuaState.
 	This will be the only way to retrieve the plugin's LuaState;
@@ -101,10 +101,11 @@ public:
 	virtual bool OnPlayerFoodLevelChange    (cPlayer & a_Player, int a_NewFoodLevel) override;
 	virtual bool OnPlayerJoined             (cPlayer & a_Player) override;
 	virtual bool OnPlayerLeftClick          (cPlayer & a_Player, int a_BlockX, int a_BlockY, int a_BlockZ, char a_BlockFace, char a_Status) override;
-	virtual bool OnPlayerMoving             (cPlayer & a_Player, const Vector3d & a_OldPosition, const Vector3d & a_NewPosition) override;
-	virtual bool OnPlayerOpeningWindow(cPlayer & a_Player, cWindow & a_Window) override;
+	virtual bool OnPlayerMoving             (cPlayer & a_Player, const Vector3d & a_OldPosition, const Vector3d & a_NewPosition, bool a_PreviousIsOnGround) override;
+	virtual bool OnPlayerOpeningWindow      (cPlayer & a_Player, cWindow & a_Window) override;
 	virtual bool OnPlayerPlacedBlock        (cPlayer & a_Player, const sSetBlock & a_BlockChange) override;
 	virtual bool OnPlayerPlacingBlock       (cPlayer & a_Player, const sSetBlock & a_BlockChange) override;
+	virtual bool OnPlayerCrouched           (cPlayer & a_Player) override;
 	virtual bool OnPlayerRightClick         (cPlayer & a_Player, int a_BlockX, int a_BlockY, int a_BlockZ, char a_BlockFace, int a_CursorX, int a_CursorY, int a_CursorZ) override;
 	virtual bool OnPlayerRightClickingEntity(cPlayer & a_Player, cEntity & a_Entity) override;
 	virtual bool OnPlayerShooting           (cPlayer & a_Player) override;
@@ -205,8 +206,4 @@ protected:
 		}
 		return false;
 	}
-} ;  // tolua_export
-
-
-
-
+};  // tolua_export

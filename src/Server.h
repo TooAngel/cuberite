@@ -83,7 +83,7 @@ public:
 
 	/** Check if the player is queued to be transferred to a World.
 	Returns true is Player is found in queue. */
-	bool IsPlayerInQueue(AString a_Username);
+	bool IsPlayerInQueue(const AString & a_Username);
 
 	/** Can login more than once with same username.
 	Returns false if it is not allowed, true otherwise. */
@@ -93,6 +93,8 @@ public:
 	bool IsHardcore(void) const { return m_bIsHardcore; }
 
 	// tolua_end
+
+	const AString & GetResourcePackUrl(void) { return m_ResourcePackUrl; }
 
 	bool Start(void);
 
@@ -163,13 +165,16 @@ private:
 	friend class cRoot;  // so cRoot can create and destroy cServer
 	friend class cServerListenCallbacks;  // Accessing OnConnectionAccepted()
 
+
+
 	/** The server tick thread takes care of the players who aren't yet spawned in a world */
-	class cTickThread :
+	class cTickThread:
 		public cIsThread
 	{
-		typedef cIsThread super;
+		using Super = cIsThread;
 
 	public:
+
 		cTickThread(cServer & a_Server);
 
 	protected:
@@ -178,6 +183,7 @@ private:
 		// cIsThread overrides:
 		virtual void Execute(void) override;
 	} ;
+
 
 
 	/** The network sockets listening for client connections. */
@@ -214,6 +220,7 @@ private:
 	AString m_FaviconData;
 	size_t m_MaxPlayers;
 	bool m_bIsHardcore;
+	AString m_ResourcePackUrl;
 
 	/** Map of protocol version to Forge mods (map of ModName -> ModVersionString) */
 	std::map<UInt32, AStringMap> m_ForgeModsByVersion;

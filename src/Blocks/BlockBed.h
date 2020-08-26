@@ -16,14 +16,14 @@ class cWorldInterface;
 
 
 class cBlockBedHandler :
-	public cMetaRotator<cBlockEntityHandler, 0x3, 0x02, 0x03, 0x00, 0x01, true>
+	public cYawRotator<cBlockEntityHandler, 0x03, 0x02, 0x03, 0x00, 0x01>
 {
-	using super = cMetaRotator<cBlockEntityHandler, 0x3, 0x02, 0x03, 0x00, 0x01, true>;
+	using Super = cYawRotator<cBlockEntityHandler, 0x03, 0x02, 0x03, 0x00, 0x01>;
 
 public:
 
 	cBlockBedHandler(BLOCKTYPE a_BlockType):
-		super(a_BlockType)
+		Super(a_BlockType)
 	{
 	}
 
@@ -32,28 +32,30 @@ public:
 
 
 	// Overrides:
-	virtual void OnBroken(cChunkInterface & a_ChunkInterface, cWorldInterface & a_WorldInterface, Vector3i a_BlockPos, BLOCKTYPE a_OldBlockType, NIBBLETYPE a_OldBlockMeta) override;
-	virtual bool OnUse(cChunkInterface & a_ChunkInterface, cWorldInterface & a_WorldInterface, cPlayer & a_Player, int a_BlockX, int a_BlockY, int a_BlockZ, eBlockFace a_BlockFace, int a_CursorX, int a_CursorY, int a_CursorZ) override;
-	virtual cItems ConvertToPickups(NIBBLETYPE a_BlockMeta, cBlockEntity * a_BlockEntity, const cEntity * a_Digger, const cItem * a_Tool) override;
-	virtual void OnPlacedByPlayer(cChunkInterface & a_ChunkInterface, cWorldInterface & a_WorldInterface, cPlayer & a_Player, const sSetBlock & a_BlockChange) override;
+	virtual void OnBroken(
+		cChunkInterface & a_ChunkInterface, cWorldInterface & a_WorldInterface,
+		const Vector3i a_BlockPos,
+		BLOCKTYPE a_OldBlockType, NIBBLETYPE a_OldBlockMeta
+	) override;
 
+	virtual bool OnUse(
+		cChunkInterface & a_ChunkInterface, cWorldInterface & a_WorldInterface, cPlayer & a_Player,
+		const Vector3i a_ClickedBlockPos,
+		eBlockFace a_ClickedBlockFace,
+		const Vector3i a_CursorPos
+	) override;
 
+	virtual cItems ConvertToPickups(
+		NIBBLETYPE a_BlockMeta,
+		cBlockEntity * a_BlockEntity,
+		const cEntity * a_Digger,
+		const cItem * a_Tool
+	) override;
 
-
-
-	// Bed specific helper functions
-	static NIBBLETYPE RotationToMetaData(double a_Rotation)
-	{
-		a_Rotation += 180 + (180 / 4);  // So its not aligned with axis
-		if (a_Rotation > 360)
-		{
-			a_Rotation -= 360;
-		}
-
-		a_Rotation = (a_Rotation / 360) * 4;
-
-		return (static_cast<NIBBLETYPE>(a_Rotation + 2)) % 4;
-	}
+	virtual void OnPlacedByPlayer(
+		cChunkInterface & a_ChunkInterface, cWorldInterface & a_WorldInterface, cPlayer & a_Player,
+		const sSetBlock & a_BlockChange
+	) override;
 
 
 

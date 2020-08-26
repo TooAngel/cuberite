@@ -2,6 +2,7 @@
 #include "Globals.h"  // NOTE: MSVC stupidness requires this to be the same across all modules
 
 #include "World.h"
+#include "BlockInfo.h"
 #include "ClientHandle.h"
 #include "Server.h"
 #include "Root.h"
@@ -89,7 +90,7 @@ namespace World
 // cWorld::cLock:
 
 cWorld::cLock::cLock(cWorld & a_World) :
-	super(&(a_World.m_ChunkMap->GetCS()))
+	Super(&(a_World.m_ChunkMap->GetCS()))
 {
 }
 
@@ -101,7 +102,7 @@ cWorld::cLock::cLock(cWorld & a_World) :
 // cWorld::cTickThread:
 
 cWorld::cTickThread::cTickThread(cWorld & a_World) :
-	super(Printf("WorldTickThread: %s", a_World.GetName().c_str())),
+	Super(Printf("WorldTickThread: %s", a_World.GetName().c_str())),
 	m_World(a_World)
 {
 }
@@ -193,6 +194,7 @@ cWorld::cWorld(
 	m_MinThunderStormTicks(3600),   // 3 real-world minutes   -+
 	m_MaxCactusHeight(3),
 	m_MaxSugarcaneHeight(4),
+	/* TODO: Enable when functionality exists again
 	m_IsBeetrootsBonemealable(true),
 	m_IsCactusBonemealable(false),
 	m_IsCarrotsBonemealable(true),
@@ -207,6 +209,7 @@ cWorld::cWorld(
 	m_IsSugarcaneBonemealable(false),
 	m_IsBigFlowerBonemealable(true),
 	m_IsTallGrassBonemealable(true),
+	*/
 	m_bCommandBlocksEnabled(true),
 	m_bUseChatPrefixes(false),
 	m_TNTShrapnelLevel(slNone),
@@ -220,7 +223,10 @@ cWorld::cWorld(
 {
 	LOGD("cWorld::cWorld(\"%s\")", a_WorldName.c_str());
 
-	cFile::CreateFolderRecursive(FILE_IO_PREFIX + m_DataPath);
+	cFile::CreateFolderRecursive(m_DataPath);
+
+	m_ChunkMap = cpp14::make_unique<cChunkMap>(this);
+	m_ChunkMap->TrackInDeadlockDetect(a_DeadlockDetect, m_WorldName);
 
 	// Load the scoreboard
 	cScoreboardSerializer Serializer(m_DataPath, &m_Scoreboard);
@@ -228,7 +234,6 @@ cWorld::cWorld(
 
 	// Track the CSs used by this world in the deadlock detector:
 	a_DeadlockDetect.TrackCriticalSection(m_CSClients, Printf("World %s clients", m_WorldName.c_str()));
-	a_DeadlockDetect.TrackCriticalSection(m_CSPlayers, Printf("World %s players", m_WorldName.c_str()));
 	a_DeadlockDetect.TrackCriticalSection(m_CSTasks,   Printf("World %s tasks",   m_WorldName.c_str()));
 
 	// Load world settings from the ini file
@@ -282,6 +287,7 @@ cWorld::cWorld(
 	m_StorageCompressionFactor    = IniFile.GetValueSetI("Storage",       "CompressionFactor",           m_StorageCompressionFactor);
 	m_MaxCactusHeight             = IniFile.GetValueSetI("Plants",        "MaxCactusHeight",             3);
 	m_MaxSugarcaneHeight          = IniFile.GetValueSetI("Plants",        "MaxSugarcaneHeight",          3);
+	/* TODO: Enable when functionality exists again
 	m_IsBeetrootsBonemealable     = IniFile.GetValueSetB("Plants",        "IsBeetrootsBonemealable",     true);
 	m_IsCactusBonemealable        = IniFile.GetValueSetB("Plants",        "IsCactusBonemealable",        false);
 	m_IsCarrotsBonemealable       = IniFile.GetValueSetB("Plants",        "IsCarrotsBonemealable",       true);
@@ -296,6 +302,7 @@ cWorld::cWorld(
 	m_IsSugarcaneBonemealable     = IniFile.GetValueSetB("Plants",        "IsSugarcaneBonemealable",     false);
 	m_IsBigFlowerBonemealable     = IniFile.GetValueSetB("Plants",        "IsBigFlowerBonemealable",     true);
 	m_IsTallGrassBonemealable     = IniFile.GetValueSetB("Plants",        "IsTallGrassBonemealable",     true);
+	*/
 	m_IsDeepSnowEnabled           = IniFile.GetValueSetB("Physics",       "DeepSnow",                    true);
 	m_ShouldLavaSpawnFire         = IniFile.GetValueSetB("Physics",       "ShouldLavaSpawnFire",         true);
 	int TNTShrapnelLevel          = IniFile.GetValueSetI("Physics",       "TNTShrapnelLevel",            static_cast<int>(slAll));
@@ -406,9 +413,6 @@ cWorld::cWorld(
 
 	InitializeAndLoadMobSpawningValues(IniFile);
 	SetTimeOfDay(IniFile.GetValueSetI("General", "TimeInTicks", GetTimeOfDay()));
-
-	m_ChunkMap = cpp14::make_unique<cChunkMap>(this);
-	m_ChunkMap->TrackInDeadlockDetect(a_DeadlockDetect, m_WorldName);
 
 	// preallocate some memory for ticking blocks so we don't need to allocate that often
 	m_BlockTickQueue.reserve(1000);
@@ -586,9 +590,9 @@ bool cWorld::IsWeatherWetAtXYZ(Vector3i a_Pos)
 
 
 
-void cWorld::SetNextBlockTick(int a_BlockX, int a_BlockY, int a_BlockZ)
+void cWorld::SetNextBlockToTick(const Vector3i a_BlockPos)
 {
-	return m_ChunkMap->SetNextBlockTick(a_BlockX, a_BlockY, a_BlockZ);
+	return m_ChunkMap->SetNextBlockToTick(a_BlockPos);
 }
 
 
@@ -890,7 +894,7 @@ void cWorld::InitializeAndLoadMobSpawningValues(cIniFile & a_IniFile)
 	switch (m_Dimension)
 	{
 		case dimOverworld: DefaultMonsters = "bat, cavespider, chicken, cow, creeper, guardian, horse, mooshroom, ocelot, pig, rabbit, sheep, silverfish, skeleton, slime, spider, squid, wolf, zombie"; break;  // TODO Re-add Enderman when bugs are fixed
-		case dimNether:    DefaultMonsters = "blaze, ghast, magmacube, skeleton, zombie, zombiepigman"; break;
+		case dimNether:    DefaultMonsters = "blaze, ghast, magmacube, witherskeleton, zombiepigman"; break;
 		case dimEnd:       DefaultMonsters = ""; break;  // TODO Re-add Enderman when bugs are fixed
 		case dimNotSet:    ASSERT(!"Dimension not set"); break;
 	}
@@ -963,7 +967,6 @@ void cWorld::Stop(cDeadlockDetect & a_DeadlockDetect)
 	m_Storage.Stop();
 
 	a_DeadlockDetect.UntrackCriticalSection(m_CSClients);
-	a_DeadlockDetect.UntrackCriticalSection(m_CSPlayers);
 	a_DeadlockDetect.UntrackCriticalSection(m_CSTasks);
 	m_ChunkMap->UntrackInDeadlockDetect(a_DeadlockDetect);
 }
@@ -1021,12 +1024,13 @@ void cWorld::Tick(std::chrono::milliseconds a_Dt, std::chrono::milliseconds a_La
 	}
 	for (auto & Entity : EntitiesToAdd)
 	{
-		Entity->SetWorld(this);
 		auto EntityPtr = Entity.get();
+		ASSERT(EntityPtr->GetWorld() == this);
 		m_ChunkMap->AddEntity(std::move(Entity));
 		EntityPtr->OnAddToWorld(*this);
 		ASSERT(!EntityPtr->IsTicking());
 		EntityPtr->SetIsTicking(true);
+		cPluginManager::Get()->CallHookSpawnedEntity(*this, *Entity);
 	}
 	EntitiesToAdd.clear();
 
@@ -1202,11 +1206,8 @@ void cWorld::TickQueuedTasks(void)
 		// Partition everything to be executed by returning false to move to end of list if time reached
 		auto MoveBeginIterator = std::partition(m_Tasks.begin(), m_Tasks.end(), [this](const decltype(m_Tasks)::value_type & a_Task)
 			{
-				if (a_Task.first < std::chrono::duration_cast<cTickTimeLong>(m_WorldAge).count())
-				{
-					return false;
-				}
-				return true;
+				const auto WorldAgeTicks = std::chrono::duration_cast<cTickTimeLong>(m_WorldAge).count();
+				return (a_Task.first >= WorldAgeTicks);
 			}
 		);
 
@@ -1399,6 +1400,7 @@ bool cWorld::ForEachFurnaceInChunk(int a_ChunkX, int a_ChunkZ, cFurnaceCallback 
 
 void cWorld::DoExplosionAt(double a_ExplosionSize, double a_BlockX, double a_BlockY, double a_BlockZ, bool a_CanCauseFire, eExplosionSource a_Source, void * a_SourceData)
 {
+	cLock Lock(*this);
 	if (cPluginManager::Get()->CallHookExploding(*this, a_ExplosionSize, a_CanCauseFire, a_BlockX, a_BlockY, a_BlockZ, a_Source, a_SourceData) || (a_ExplosionSize <= 0))
 	{
 		return;
@@ -1407,21 +1409,37 @@ void cWorld::DoExplosionAt(double a_ExplosionSize, double a_BlockX, double a_Blo
 	// TODO: Implement block hardiness
 	cVector3iArray BlocksAffected;
 	m_ChunkMap->DoExplosionAt(a_ExplosionSize, a_BlockX, a_BlockY, a_BlockZ, BlocksAffected);
-	BroadcastSoundEffect("entity.generic.explode", Vector3d(a_BlockX, a_BlockY, a_BlockZ), 1.0f, 0.6f);
 
+	auto & Random = GetRandomProvider();
+	auto SoundPitchMultiplier = 1.0f + (Random.RandReal(1.0f) - Random.RandReal(1.0f)) * 0.2f;
+
+	BroadcastSoundEffect("entity.generic.explode", Vector3d(a_BlockX, a_BlockY, a_BlockZ), 4.0f, SoundPitchMultiplier * 0.7f);
+
+	Vector3d ExplosionPos(a_BlockX, a_BlockY, a_BlockZ);
+	for (auto Player : m_Players)
 	{
-		cCSLock Lock(m_CSPlayers);
-		for (cPlayerList::iterator itr = m_Players.begin(); itr != m_Players.end(); ++itr)
+		cClientHandle * ch = Player->GetClientHandle();
+		if (ch == nullptr)
 		{
-			cClientHandle * ch = (*itr)->GetClientHandle();
-			if (ch == nullptr)
-			{
-				continue;
-			}
-
-			ch->SendExplosion(a_BlockX, a_BlockY, a_BlockZ, static_cast<float>(a_ExplosionSize), BlocksAffected, (*itr)->GetSpeed());
+			continue;
 		}
+
+		bool InRange = (Player->GetExplosionExposureRate(ExplosionPos, static_cast<float>(a_ExplosionSize)) > 0);
+		auto Speed = InRange ? Player->GetSpeed() : Vector3d{};
+		ch->SendExplosion({a_BlockX, a_BlockY, a_BlockZ}, static_cast<float>(a_ExplosionSize), BlocksAffected, Speed);
 	}
+
+	auto Position = Vector3d(a_BlockX, a_BlockY - 0.5f, a_BlockZ);
+	auto ParticleFormula = a_ExplosionSize * 0.33f;
+	auto Spread = ParticleFormula * 0.5f;
+	auto ParticleCount = std::min((ParticleFormula * 125), 600.0);
+
+	BroadcastParticleEffect("largesmoke", Position, Vector3f{}, static_cast<float>(Spread), static_cast<int>(ParticleCount));
+
+	Spread = ParticleFormula * 0.35f;
+	ParticleCount = std::min((ParticleFormula * 550), 1800.0);
+
+	BroadcastParticleEffect("explode", Position, Vector3f{}, static_cast<float>(Spread), static_cast<int>(ParticleCount));
 
 	cPluginManager::Get()->CallHookExploded(*this, a_ExplosionSize, a_CanCauseFire, a_BlockX, a_BlockY, a_BlockZ, a_Source, a_SourceData);
 }
@@ -1505,6 +1523,15 @@ bool cWorld::DoWithDropSpenserAt(int a_BlockX, int a_BlockY, int a_BlockZ, cDrop
 bool cWorld::DoWithFurnaceAt(int a_BlockX, int a_BlockY, int a_BlockZ, cFurnaceCallback a_Callback)
 {
 	return m_ChunkMap->DoWithFurnaceAt(a_BlockX, a_BlockY, a_BlockZ, a_Callback);
+}
+
+
+
+
+
+bool cWorld::DoWithHopperAt(int a_BlockX, int a_BlockY, int a_BlockZ, cHopperCallback a_Callback)
+{
+	return m_ChunkMap->DoWithHopperAt(a_BlockX, a_BlockY, a_BlockZ, a_Callback);
 }
 
 
@@ -1958,9 +1985,9 @@ void cWorld::SpawnItemPickups(const cItems & a_Pickups, Vector3d a_Pos, double a
 			continue;
 		}
 
-		float SpeedX = static_cast<float>(a_FlyAwaySpeed * Random.RandInt(-5, 5));
-		float SpeedY = static_cast<float>(a_FlyAwaySpeed * Random.RandInt(50));
-		float SpeedZ = static_cast<float>(a_FlyAwaySpeed * Random.RandInt(-5, 5));
+		float SpeedX = static_cast<float>(a_FlyAwaySpeed * Random.RandInt(-10, 10));
+		float SpeedY = static_cast<float>(a_FlyAwaySpeed * Random.RandInt(40, 50));
+		float SpeedZ = static_cast<float>(a_FlyAwaySpeed * Random.RandInt(-10, 10));
 
 		auto Pickup = cpp14::make_unique<cPickup>(a_Pos, *itr, a_IsPlayerCreated, Vector3f{SpeedX, SpeedY, SpeedZ});
 		auto PickupPtr = Pickup.get();
@@ -2006,7 +2033,7 @@ UInt32 cWorld::SpawnItemPickup(Vector3d a_Pos, const cItem & a_Item, Vector3f a_
 
 
 
-UInt32 cWorld::SpawnFallingBlock(Vector3i a_Pos, BLOCKTYPE a_BlockType, NIBBLETYPE a_BlockMeta)
+UInt32 cWorld::SpawnFallingBlock(Vector3d a_Pos, BLOCKTYPE a_BlockType, NIBBLETYPE a_BlockMeta)
 {
 	auto fallingBlock = cpp14::make_unique<cFallingBlock>(a_Pos, a_BlockType, a_BlockMeta);
 	auto fallingBlockPtr = fallingBlock.get();
@@ -2129,7 +2156,7 @@ UInt32 cWorld::SpawnBoat(Vector3d a_Pos, cBoat::eMaterial a_Material)
 
 
 
-UInt32 cWorld::SpawnPrimedTNT(Vector3d a_Pos, int a_FuseTicks, double a_InitialVelocityCoeff)
+UInt32 cWorld::SpawnPrimedTNT(Vector3d a_Pos, int a_FuseTicks, double a_InitialVelocityCoeff, bool a_ShouldPlayFuseSound)
 {
 	auto TNT = cpp14::make_unique<cTNTEntity>(a_Pos, a_FuseTicks);
 	auto TNTPtr = TNT.get();
@@ -2138,11 +2165,16 @@ UInt32 cWorld::SpawnPrimedTNT(Vector3d a_Pos, int a_FuseTicks, double a_InitialV
 		return cEntity::INVALID_ID;
 	}
 
+	if (a_ShouldPlayFuseSound)
+	{
+		BroadcastSoundEffect("entity.tnt.primed", a_Pos, 1.0f, 1.0f);
+	}
+
 	auto & Random = GetRandomProvider();
 	TNTPtr->SetSpeed(
-		a_InitialVelocityCoeff * Random.RandInt(-1, 1),
+		a_InitialVelocityCoeff * Random.RandReal(-0.5f, 0.5f),
 		a_InitialVelocityCoeff * 2,
-		a_InitialVelocityCoeff * Random.RandInt(-1, 1)
+		a_InitialVelocityCoeff * Random.RandReal(-0.5f, 0.5f)
 	);
 	return TNTPtr->GetUniqueID();
 }
@@ -2205,7 +2237,7 @@ bool cWorld::DropBlockAsPickups(Vector3i a_BlockPos, const cEntity * a_Digger, c
 	{
 		return false;
 	}
-	SpawnItemPickups(pickups, Vector3d(0.5, 0.5, 0.5) + a_BlockPos);
+	SpawnItemPickups(pickups, Vector3d(0.5, 0.5, 0.5) + a_BlockPos, 10);
 	return true;
 }
 
@@ -2484,7 +2516,7 @@ std::unique_ptr<cPlayer> cWorld::RemovePlayer(cPlayer & a_Player)
 
 	// Remove from the player list
 	{
-		cCSLock Lock(m_CSPlayers);
+		cLock Lock(*this);
 		LOGD("Removing player %s from world \"%s\"", a_Player.GetName().c_str(), m_WorldName.c_str());
 		m_Players.remove(&a_Player);
 	}
@@ -2509,9 +2541,13 @@ std::unique_ptr<cPlayer> cWorld::RemovePlayer(cPlayer & a_Player)
 #ifdef _DEBUG
 bool cWorld::IsPlayerReferencedInWorldOrChunk(cPlayer & a_Player)
 {
-	if (m_ChunkMap->RemoveEntity(a_Player) != nullptr)
 	{
-		return true;
+		cLock lock(*this);
+		auto * Chunk = a_Player.GetParentChunk();
+		if (Chunk && Chunk->HasEntity(a_Player.GetUniqueID()))
+		{
+			return true;
+		}
 	}
 
 	{
@@ -2526,7 +2562,7 @@ bool cWorld::IsPlayerReferencedInWorldOrChunk(cPlayer & a_Player)
 	}
 
 	{
-		cCSLock Lock(m_CSPlayers);
+		cLock Lock(*this);
 		if (std::find(m_Players.begin(), m_Players.end(), &a_Player) != m_Players.end())
 		{
 			return true;
@@ -2561,7 +2597,7 @@ bool cWorld::IsPlayerReferencedInWorldOrChunk(cPlayer & a_Player)
 bool cWorld::ForEachPlayer(cPlayerListCallback a_Callback)
 {
 	// Calls the callback for each player in the list
-	cCSLock Lock(m_CSPlayers);
+	cLock Lock(*this);
 	for (auto & Player : m_Players)
 	{
 		if (Player->IsTicking() && a_Callback(*Player))
@@ -2579,7 +2615,7 @@ bool cWorld::ForEachPlayer(cPlayerListCallback a_Callback)
 bool cWorld::DoWithPlayer(const AString & a_PlayerName, cPlayerListCallback a_Callback)
 {
 	// Calls the callback for the specified player in the list
-	cCSLock Lock(m_CSPlayers);
+	cLock Lock(*this);
 	for (auto & Player : m_Players)
 	{
 		if (Player->IsTicking() && (NoCaseCompare(Player->GetName(), a_PlayerName) == 0))
@@ -2601,7 +2637,7 @@ bool cWorld::FindAndDoWithPlayer(const AString & a_PlayerNameHint, cPlayerListCa
 	size_t BestRating = 0;
 	size_t NameLength = a_PlayerNameHint.length();
 
-	cCSLock Lock(m_CSPlayers);
+	cLock Lock(*this);
 	for (cPlayerList::iterator itr = m_Players.begin(); itr != m_Players.end(); ++itr)
 	{
 		if (!(*itr)->IsTicking())
@@ -2633,7 +2669,7 @@ bool cWorld::FindAndDoWithPlayer(const AString & a_PlayerNameHint, cPlayerListCa
 
 bool cWorld::DoWithPlayerByUUID(const cUUID & a_PlayerUUID, cPlayerListCallback a_Callback)
 {
-	cCSLock Lock(m_CSPlayers);
+	cLock Lock(*this);
 	for (auto & Player : m_Players)
 	{
 		if (Player->IsTicking() && (Player->GetUUID() == a_PlayerUUID))
@@ -2653,7 +2689,7 @@ bool cWorld::DoWithNearestPlayer(Vector3d a_Pos, double a_RangeLimit, cPlayerLis
 	double ClosestDistance = a_RangeLimit;
 	cPlayer * ClosestPlayer = nullptr;
 
-	cCSLock Lock(m_CSPlayers);
+	cLock Lock(*this);
 	for (cPlayerList::const_iterator itr = m_Players.begin(); itr != m_Players.end(); ++itr)
 	{
 		if (!(*itr)->IsTicking())
@@ -2705,7 +2741,7 @@ bool cWorld::DoWithNearestPlayer(Vector3d a_Pos, double a_RangeLimit, cPlayerLis
 void cWorld::SendPlayerList(cPlayer * a_DestPlayer)
 {
 	// Sends the playerlist to a_DestPlayer
-	cCSLock Lock(m_CSPlayers);
+	cLock Lock(*this);
 	for (cPlayerList::iterator itr = m_Players.begin(); itr != m_Players.end(); ++itr)
 	{
 		cClientHandle * ch = (*itr)->GetClientHandle();
@@ -3022,7 +3058,7 @@ void cWorld::QueueSaveAllChunks(void)
 void cWorld::QueueTask(std::function<void(cWorld &)> a_Task)
 {
 	cCSLock Lock(m_CSTasks);
-	m_Tasks.emplace_back(0, a_Task);
+	m_Tasks.emplace_back(0, std::move(a_Task));
 }
 
 
@@ -3036,7 +3072,7 @@ void cWorld::ScheduleTask(int a_DelayTicks, std::function<void (cWorld &)> a_Tas
 	// Insert the task into the list of scheduled tasks
 	{
 		cCSLock Lock(m_CSTasks);
-		m_Tasks.emplace_back(TargetTick, a_Task);
+		m_Tasks.emplace_back(TargetTick, std::move(a_Task));
 	}
 }
 
@@ -3046,7 +3082,6 @@ void cWorld::ScheduleTask(int a_DelayTicks, std::function<void (cWorld &)> a_Tas
 
 void cWorld::AddEntity(OwnedEntity a_Entity)
 {
-	a_Entity->SetWorld(this);
 	cCSLock Lock(m_CSEntitiesToAdd);
 	m_EntitiesToAdd.emplace_back(std::move(a_Entity));
 }
@@ -3157,7 +3192,7 @@ void cWorld::TickQueuedBlocks(void)
 		if (Block->TicksToWait <= 0)
 		{
 			// TODO: Handle the case when the chunk is already unloaded
-			m_ChunkMap->TickBlock(Block->X, Block->Y, Block->Z);
+			m_ChunkMap->TickBlock({Block->X, Block->Y, Block->Z});
 			delete Block;  // We don't have to remove it from the vector, this will happen automatically on the next tick
 		}
 		else
@@ -3303,7 +3338,7 @@ void cWorld::TabCompleteUserName(const AString & a_Text, AStringVector & a_Resul
 
 	std::vector<pair_t> UsernamesByWeight;
 
-	cCSLock Lock(m_CSPlayers);
+	cLock Lock(*this);
 	for (cPlayerList::iterator itr = m_Players.begin(), end = m_Players.end(); itr != end; ++itr)
 	{
 		AString PlayerName ((*itr)->GetName());
@@ -3475,7 +3510,7 @@ void cWorld::AddQueuedPlayers(void)
 
 	// Add all the players in the grabbed list:
 	{
-		cCSLock Lock(m_CSPlayers);
+		cLock Lock(*this);
 		for (auto & AwaitingPlayer : PlayersToAdd)
 		{
 			auto & Player = AwaitingPlayer.first;
@@ -3493,7 +3528,7 @@ void cWorld::AddQueuedPlayers(void)
 			PlayerPtr->SetIsTicking(true);
 			AddedPlayerPtrs.emplace_back(PlayerPtr, AwaitingPlayer.second);
 		}  // for itr - PlayersToAdd[]
-	}  // Lock(m_CSPlayers)
+	}  // cLock(*this)
 
 	// Add all the players' clienthandles:
 	{
@@ -3519,6 +3554,13 @@ void cWorld::AddQueuedPlayers(void)
 			Client->SendPlayerMoveLook();
 			Client->SendHealth();
 			Client->SendWholeInventory(*Player->GetWindow());
+
+			// Send resource pack
+			auto ResourcePackUrl = cRoot::Get()->GetServer()->GetResourcePackUrl();
+			if (!ResourcePackUrl.empty())
+			{
+				Client->SendResourcePack(ResourcePackUrl);
+			}
 		}
 	}  // for itr - PlayersToAdd[]
 

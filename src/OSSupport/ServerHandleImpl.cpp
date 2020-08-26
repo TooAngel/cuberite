@@ -32,7 +32,7 @@ static bool IsValidSocket(evutil_socket_t a_Socket)
 // cServerHandleImpl:
 
 cServerHandleImpl::cServerHandleImpl(cNetwork::cListenCallbacksPtr a_ListenCallbacks):
-	m_ListenCallbacks(a_ListenCallbacks),
+	m_ListenCallbacks(std::move(a_ListenCallbacks)),
 	m_ConnListener(nullptr),
 	m_SecondaryConnListener(nullptr),
 	m_IsListening(false),
@@ -63,7 +63,10 @@ cServerHandleImpl::~cServerHandleImpl()
 void cServerHandleImpl::Close(void)
 {
 	// Stop the listener sockets:
-	evconnlistener_disable(m_ConnListener);
+	if (m_ConnListener != nullptr)
+	{
+		evconnlistener_disable(m_ConnListener);
+	}
 	if (m_SecondaryConnListener != nullptr)
 	{
 		evconnlistener_disable(m_SecondaryConnListener);
@@ -76,7 +79,7 @@ void cServerHandleImpl::Close(void)
 		cCSLock Lock(m_CS);
 		std::swap(Conns, m_Connections);
 	}
-	for (auto conn: Conns)
+	for (const auto & conn: Conns)
 	{
 		conn->Shutdown();
 	}
@@ -97,7 +100,7 @@ cServerHandleImplPtr cServerHandleImpl::Listen(
 	cNetwork::cListenCallbacksPtr a_ListenCallbacks
 )
 {
-	cServerHandleImplPtr res = cServerHandleImplPtr{new cServerHandleImpl(a_ListenCallbacks)};
+	cServerHandleImplPtr res{new cServerHandleImpl(std::move(a_ListenCallbacks))};
 	res->m_SelfPtr = res;
 	if (res->Listen(a_Port))
 	{
@@ -105,7 +108,7 @@ cServerHandleImplPtr cServerHandleImpl::Listen(
 	}
 	else
 	{
-		a_ListenCallbacks->OnError(res->m_ErrorCode, res->m_ErrorMsg);
+		res->m_ListenCallbacks->OnError(res->m_ErrorCode, res->m_ErrorMsg);
 		res->m_SelfPtr.reset();
 	}
 	return res;
@@ -205,7 +208,7 @@ bool cServerHandleImpl::Listen(UInt16 a_Port)
 		evutil_closesocket(MainSock);
 		return false;
 	}
-	if (listen(MainSock, 0) != 0)
+	if (listen(MainSock, SOMAXCONN) != 0)
 	{
 		m_ErrorCode = EVUTIL_SOCKET_ERROR();
 		Printf(m_ErrorMsg, "Cannot listen on port %d: %d (%s)", a_Port, m_ErrorCode, evutil_socket_error_to_string(m_ErrorCode));
@@ -263,7 +266,7 @@ bool cServerHandleImpl::Listen(UInt16 a_Port)
 		return true;  // Report as success, the primary socket is working
 	}
 
-	if (listen(SecondSock, 0) != 0)
+	if (listen(SecondSock, SOMAXCONN) != 0)
 	{
 		err = EVUTIL_SOCKET_ERROR();
 		LOGD("Cannot listen on secondary socket on port %d: %d (%s)", a_Port, err, evutil_socket_error_to_string(err));
@@ -360,7 +363,7 @@ cServerHandlePtr cNetwork::Listen(
 	cNetwork::cListenCallbacksPtr a_ListenCallbacks
 )
 {
-	return cServerHandleImpl::Listen(a_Port, a_ListenCallbacks);
+	return cServerHandleImpl::Listen(a_Port, std::move(a_ListenCallbacks));
 }
 
 

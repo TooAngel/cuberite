@@ -2,6 +2,7 @@
 #include "Globals.h"  // NOTE: MSVC stupidness requires this to be the same across all modules
 
 #include "ChestEntity.h"
+#include "../BlockInfo.h"
 #include "../Item.h"
 #include "../Entities/Player.h"
 #include "../UI/ChestWindow.h"
@@ -13,7 +14,7 @@
 
 
 cChestEntity::cChestEntity(BLOCKTYPE a_BlockType, NIBBLETYPE a_BlockMeta, Vector3i a_Pos, cWorld * a_World):
-	super(a_BlockType, a_BlockMeta, a_Pos, ContentsWidth, ContentsHeight, a_World),
+	Super(a_BlockType, a_BlockMeta, a_Pos, ContentsWidth, ContentsHeight, a_World),
 	m_NumActivePlayers(0),
 	m_Neighbour(nullptr)
 {
@@ -49,7 +50,7 @@ cChestEntity::~cChestEntity()
 
 void cChestEntity::CopyFrom(const cBlockEntity & a_Src)
 {
-	super::CopyFrom(a_Src);
+	Super::CopyFrom(a_Src);
 	auto & src = static_cast<const cChestEntity &>(a_Src);
 	m_Contents.CopyFrom(src.m_Contents);
 

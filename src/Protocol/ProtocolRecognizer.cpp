@@ -19,6 +19,7 @@
 #include "../Server.h"
 #include "../World.h"
 #include "../ChatColor.h"
+#include "../JsonUtils.h"
 #include "../Bindings/PluginManager.h"
 
 
@@ -26,7 +27,7 @@
 
 
 cProtocolRecognizer::cProtocolRecognizer(cClientHandle * a_Client) :
-	super(a_Client),
+	Super(a_Client),
 	m_Buffer(8192),  // We need a larger buffer to support BungeeCord - it sends one huge packet at the start
 	m_InPingForUnrecognizedVersion(false)
 {
@@ -50,6 +51,7 @@ AString cProtocolRecognizer::GetVersionTextFromInt(int a_ProtocolVersion)
 		case PROTO_VERSION_1_11_1:  return "1.11.1";
 		case PROTO_VERSION_1_12:    return "1.12";
 		case PROTO_VERSION_1_12_1:  return "1.12.1";
+		case PROTO_VERSION_1_12_2:  return "1.12.2";
 		case PROTO_VERSION_1_13:    return "1.13";
 	}
 	ASSERT(!"Unknown protocol version");
@@ -233,10 +235,10 @@ void cProtocolRecognizer::SendChunkData(int a_ChunkX, int a_ChunkZ, cChunkDataSe
 
 
 
-void cProtocolRecognizer::SendCollectEntity(const cEntity & a_Entity, const cPlayer & a_Player, int a_Count)
+void cProtocolRecognizer::SendCollectEntity(const cEntity & a_Collected, const cEntity & a_Collector, unsigned a_Count)
 {
 	ASSERT(m_Protocol != nullptr);
-	m_Protocol->SendCollectEntity(a_Entity, a_Player, a_Count);
+	m_Protocol->SendCollectEntity(a_Collected, a_Collector, a_Count);
 }
 
 
@@ -285,6 +287,16 @@ void cProtocolRecognizer::SendEditSign(int a_BlockX, int a_BlockY, int a_BlockZ)
 {
 	ASSERT(m_Protocol != nullptr);
 	m_Protocol->SendEditSign(a_BlockX, a_BlockY, a_BlockZ);
+}
+
+
+
+
+
+void cProtocolRecognizer::SendEntityAnimation(const cEntity & a_Entity, char a_Animation)
+{
+	ASSERT(m_Protocol != nullptr);
+	m_Protocol->SendEntityAnimation(a_Entity, a_Animation);
 }
 
 
@@ -341,30 +353,20 @@ void cProtocolRecognizer::SendEntityMetadata(const cEntity & a_Entity)
 
 
 
+void cProtocolRecognizer::SendEntityPosition(const cEntity & a_Entity)
+{
+	ASSERT(m_Protocol != nullptr);
+	m_Protocol->SendEntityPosition(a_Entity);
+}
+
+
+
+
+
 void cProtocolRecognizer::SendEntityProperties(const cEntity & a_Entity)
 {
 	ASSERT(m_Protocol != nullptr);
 	m_Protocol->SendEntityProperties(a_Entity);
-}
-
-
-
-
-
-void cProtocolRecognizer::SendEntityRelMove(const cEntity & a_Entity, char a_RelX, char a_RelY, char a_RelZ)
-{
-	ASSERT(m_Protocol != nullptr);
-	m_Protocol->SendEntityRelMove(a_Entity, a_RelX, a_RelY, a_RelZ);
-}
-
-
-
-
-
-void cProtocolRecognizer::SendEntityRelMoveLook(const cEntity & a_Entity, char a_RelX, char a_RelY, char a_RelZ)
-{
-	ASSERT(m_Protocol != nullptr);
-	m_Protocol->SendEntityRelMoveLook(a_Entity, a_RelX, a_RelY, a_RelZ);
 }
 
 
@@ -550,30 +552,10 @@ void cProtocolRecognizer::SendPaintingSpawn(const cPainting & a_Painting)
 
 
 
-void cProtocolRecognizer::SendPickupSpawn(const cPickup & a_Pickup)
-{
-	ASSERT(m_Protocol != nullptr);
-	m_Protocol->SendPickupSpawn(a_Pickup);
-}
-
-
-
-
-
 void cProtocolRecognizer::SendPlayerAbilities(void)
 {
 	ASSERT(m_Protocol != nullptr);
 	m_Protocol->SendPlayerAbilities();
-}
-
-
-
-
-
-void cProtocolRecognizer::SendEntityAnimation(const cEntity & a_Entity, char a_Animation)
-{
-	ASSERT(m_Protocol != nullptr);
-	m_Protocol->SendEntityAnimation(a_Entity, a_Animation);
 }
 
 
@@ -700,6 +682,16 @@ void cProtocolRecognizer::SendResetTitle(void)
 
 
 
+void cProtocolRecognizer::SendResourcePack(const AString & a_ResourcePackUrl)
+{
+	ASSERT(m_Protocol != nullptr);
+	m_Protocol->SendResourcePack(a_ResourcePackUrl);
+}
+
+
+
+
+
 void cProtocolRecognizer::SendRespawn(eDimension a_Dimension)
 {
 	ASSERT(m_Protocol != nullptr);
@@ -820,10 +812,10 @@ void cProtocolRecognizer::SendSoundParticleEffect(const EffectID a_EffectID, int
 
 
 
-void cProtocolRecognizer::SendSpawnFallingBlock(const cFallingBlock & a_FallingBlock)
+void cProtocolRecognizer::SendSpawnEntity(const cEntity & a_Entity)
 {
 	ASSERT(m_Protocol != nullptr);
-	m_Protocol->SendSpawnFallingBlock(a_FallingBlock);
+	m_Protocol->SendSpawnEntity(a_Entity);
 }
 
 
@@ -834,26 +826,6 @@ void cProtocolRecognizer::SendSpawnMob(const cMonster & a_Mob)
 {
 	ASSERT(m_Protocol != nullptr);
 	m_Protocol->SendSpawnMob(a_Mob);
-}
-
-
-
-
-
-void cProtocolRecognizer::SendSpawnObject(const cEntity & a_Entity, char a_ObjectType, int a_ObjectData, Byte a_Yaw, Byte a_Pitch)
-{
-	ASSERT(m_Protocol != nullptr);
-	m_Protocol->SendSpawnObject(a_Entity, a_ObjectType, a_ObjectData, a_Yaw, a_Pitch);
-}
-
-
-
-
-
-void cProtocolRecognizer::SendSpawnVehicle(const cEntity & a_Vehicle, char a_VehicleType, char a_VehicleSubType)
-{
-	ASSERT(m_Protocol != nullptr);
-	m_Protocol->SendSpawnVehicle(a_Vehicle, a_VehicleType, a_VehicleSubType);
 }
 
 
@@ -874,16 +846,6 @@ void cProtocolRecognizer::SendTabCompletionResults(const AStringVector & a_Resul
 {
 	ASSERT(m_Protocol != nullptr);
 	m_Protocol->SendTabCompletionResults(a_Results);
-}
-
-
-
-
-
-void cProtocolRecognizer::SendTeleportEntity(const cEntity & a_Entity)
-{
-	ASSERT(m_Protocol != nullptr);
-	m_Protocol->SendTeleportEntity(a_Entity);
 }
 
 
@@ -954,6 +916,26 @@ void cProtocolRecognizer::SendUseBed(const cEntity & a_Entity, int a_BlockX, int
 {
 	ASSERT(m_Protocol != nullptr);
 	m_Protocol->SendUseBed(a_Entity, a_BlockX, a_BlockY, a_BlockZ);
+}
+
+
+
+
+
+void cProtocolRecognizer::SendUnlockRecipe(UInt32 a_RecipeID)
+{
+	ASSERT(m_Protocol != nullptr);
+	m_Protocol->SendUnlockRecipe(a_RecipeID);
+}
+
+
+
+
+
+void cProtocolRecognizer::SendInitRecipes(UInt32 a_RecipeID)
+{
+	ASSERT(m_Protocol != nullptr);
+	m_Protocol->SendInitRecipes(a_RecipeID);
 }
 
 
@@ -1262,8 +1244,7 @@ void cProtocolRecognizer::HandlePacketStatusRequest(void)
 		ResponseValue["favicon"] = Printf("data:image/png;base64,%s", Favicon.c_str());
 	}
 
-	Json::FastWriter Writer;
-	AString Response = Writer.write(ResponseValue);
+	AString Response = JsonUtils::WriteFastString(ResponseValue);
 
 	cPacketizer Pkt(*this, pktStatusResponse);
 	Pkt.WriteString(Response);

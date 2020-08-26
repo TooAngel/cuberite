@@ -939,6 +939,35 @@ function OnAllChunksAvailable()</pre> All return values from the callbacks are i
 				},
 				Notes = "If there is a furnace at the specified coords, calls the CallbackFunction with the {{cFurnaceEntity}} parameter representing the furnace. The CallbackFunction has the following signature: <pre class=\"prettyprint lang-lua\">function Callback({{cFurnaceEntity|FurnaceEntity}})</pre> The function returns false if there is no furnace, or if there is, it returns the bool value that the callback has returned.",
 			},
+			DoWithHopperAt =
+			{
+				Params =
+				{
+					{
+						Name = "BlockX",
+						Type = "number",
+					},
+					{
+						Name = "BlockY",
+						Type = "number",
+					},
+					{
+						Name = "BlockZ",
+						Type = "number",
+					},
+					{
+						Name = "CallbackFunction",
+						Type = "function",
+					},
+				},
+				Returns =
+				{
+					{
+						Type = "boolean",
+					},
+				},
+				Notes = "If there is a hopper at the specified coords, calls the CallbackFunction with the {{cHopperEntity}} parameter representing the hopper. The CallbackFunction has the following signature: <pre class=\"prettyprint lang-lua\">function Callback({{cHopperEntity|cHopperEntity}})</pre> The function returns false if there is no hopper, or if there is, it returns the bool value that the callback has returned.",
+			},
 			DoWithMobHeadAt =
 			{
 				Params =
@@ -3003,7 +3032,18 @@ function OnAllChunksAvailable()</pre> All return values from the callbacks are i
 						Type = "number",
 					},
 				},
-				Notes = "Sets the blockticking to start at the specified block in the next tick.",
+				Notes = "DEPRECATED, use SetNextBlockToTick() instead.",
+			},
+			SetNextBlockToTick =
+			{
+				Params =
+				{
+					{
+						Name = "BlockPos",
+						Type = "Vector3i",
+					},
+				},
+				Notes = "Requests that the specified block be ticked at the start of the next world tick. Only one block per chunk can be queued this way; a second call to the same chunk overwrites the previous call.",
 			},
 			SetSavingEnabled =
 			{
@@ -3290,37 +3330,89 @@ function OnAllChunksAvailable()</pre> All return values from the callbacks are i
 			},
 			SpawnFallingBlock =
 			{
-				Params =
 				{
+					Params =
 					{
-						Name = "X",
-						Type = "number",
+						{
+							Name = "X",
+							Type = "number",
+						},
+						{
+							Name = "Y",
+							Type = "number",
+						},
+						{
+							Name = "Z",
+							Type = "number",
+						},
+						{
+							Name = "BlockType",
+							Type = "number",
+						},
+						{
+							Name = "BlockMeta",
+							Type = "number",
+						},
 					},
+					Returns =
 					{
-						Name = "Y",
-						Type = "number",
+						{
+							Name = "EntityID",
+							Type = "number",
+						},
 					},
-					{
-						Name = "Z",
-						Type = "number",
-					},
-					{
-						Name = "BlockType",
-						Type = "number",
-					},
-					{
-						Name = "BlockMeta",
-						Type = "number",
-					},
+					Notes = "OBSOLETE, use the Vector3-based overloads instead. Spawns a {{cFallingBlock|Falling Block}} entity at the specified coords with the given block type/meta. Returns the EntityID of the new falling block, or {{cEntity#INVALID_ID|cEntity#INVALID_ID}} if no falling block was created.",
 				},
-				Returns =
 				{
+					Params =
 					{
-						Name = "EntityID",
-						Type = "number",
+						{
+							Name = "BlockPos",
+							Type = "Vector3i",
+						},
+						{
+							Name = "BlockType",
+							Type = "number",
+						},
+						{
+							Name = "BlockMeta",
+							Type = "number",
+						},
 					},
+					Returns =
+					{
+						{
+							Name = "EntityID",
+							Type = "number",
+						},
+					},
+					Notes = "Spawns a {{cFallingBlock|Falling Block}} entity in the middle of the specified block, with the given block type/meta. Returns the EntityID of the new falling block, or {{cEntity#INVALID_ID|cEntity#INVALID_ID}} if no falling block was created.",
 				},
-				Notes = "Spawns a {{cFallingBlock|Falling Block}} entity at the specified coords with the given block type/meta. Returns the EntityID of the new falling block, or {{cEntity#INVALID_ID|cEntity#INVALID_ID}} if no falling block was created.",
+				{
+					Params =
+					{
+						{
+							Name = "Pos",
+							Type = "Vector3d",
+						},
+						{
+							Name = "BlockType",
+							Type = "number",
+						},
+						{
+							Name = "BlockMeta",
+							Type = "number",
+						},
+					},
+					Returns =
+					{
+						{
+							Name = "EntityID",
+							Type = "number",
+						},
+					},
+					Notes = "Spawns a {{cFallingBlock|Falling Block}} entity at exactly the specified coords, with the given block type/meta. Returns the EntityID of the new falling block, or {{cEntity#INVALID_ID|cEntity#INVALID_ID}} if no falling block was created.",
+				},
 			},
 			SpawnItemPickup =
 			{
@@ -3547,6 +3639,10 @@ function OnAllChunksAvailable()</pre> All return values from the callbacks are i
 						{
 							Name = "InitialVelocityCoeff",
 							Type = "number",
+						},
+						{
+							Name = "ShouldPlayFuseSound",
+							Type = "boolean",
 						},
 					},
 					Returns =

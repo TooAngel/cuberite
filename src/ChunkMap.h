@@ -29,6 +29,7 @@ class cDispenserEntity;
 class cDropperEntity;
 class cDropSpenserEntity;
 class cFurnaceEntity;
+class cHopperEntity;
 class cNoteEntity;
 class cCommandBlockEntity;
 class cMobHeadEntity;
@@ -53,6 +54,7 @@ using cDispenserCallback    = cFunctionRef<bool(cDispenserEntity    &)>;
 using cDropperCallback      = cFunctionRef<bool(cDropperEntity      &)>;
 using cDropSpenserCallback  = cFunctionRef<bool(cDropSpenserEntity  &)>;
 using cFurnaceCallback      = cFunctionRef<bool(cFurnaceEntity      &)>;
+using cHopperCallback       = cFunctionRef<bool(cHopperEntity       &)>;
 using cNoteBlockCallback    = cFunctionRef<bool(cNoteEntity         &)>;
 using cCommandBlockCallback = cFunctionRef<bool(cCommandBlockEntity &)>;
 using cMobHeadCallback      = cFunctionRef<bool(cMobHeadEntity      &)>;
@@ -302,6 +304,10 @@ public:
 	Returns false if there's no furnace at those coords or callback returns true, returns true if found. */
 	bool DoWithFurnaceAt(int a_BlockX, int a_BlockY, int a_BlockZ, cFurnaceCallback a_Callback);  // Lua-accessible
 
+	/** Calls the callback for the hopper at the specified coords.
+	Returns false if there's no hopper at those coords or callback returns true, returns true if found. */
+	bool DoWithHopperAt(int a_BlockX, int a_BlockY, int a_BlockZ, cHopperCallback a_Callback);  // Lua-accessible
+
 	/** Calls the callback for the noteblock at the specified coords.
 	Returns false if there's no noteblock at those coords or callback returns true, returns true if found. */
 	bool DoWithNoteBlockAt(int a_BlockX, int a_BlockY, int a_BlockZ, cNoteBlockCallback a_Callback);  // Lua-accessible
@@ -367,8 +373,10 @@ public:
 	Returns the number of stages the plant has grown, 0 if not a plant. */
 	int GrowPlantAt(Vector3i a_BlockPos, int a_NumStages = 1);
 
-	/** Sets the blockticking to start at the specified block. Only one blocktick per chunk may be set, second call overwrites the first call */
-	void SetNextBlockTick(int a_BlockX, int a_BlockY, int a_BlockZ);
+	/** Causes the specified block to be ticked on the next Tick() call.
+	Plugins can use this via the cWorld:SetNextBlockToTick() API.
+	Only one block coord per chunk may be set, a second call overwrites the first call */
+	void SetNextBlockToTick(const Vector3i a_BlockPos);
 
 	/** Make a Mob census, of all mobs, their family, their chunk and their distance to closest player */
 	void CollectMobCensus(cMobCensus & a_ToFill);
@@ -379,7 +387,7 @@ public:
 	void Tick(std::chrono::milliseconds a_Dt);
 
 	/** Ticks a single block. Used by cWorld::TickQueuedBlocks() to tick the queued blocks */
-	void TickBlock(int a_BlockX, int a_BlockY, int a_BlockZ);
+	void TickBlock(const Vector3i a_BlockPos);
 
 	void UnloadUnusedChunks(void);
 	void SaveAllChunks(void);

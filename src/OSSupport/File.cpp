@@ -9,6 +9,8 @@
 #include <fstream>
 #ifdef _WIN32
 	#include <share.h>  // for _SH_DENYWRITE
+#else
+	#include <dirent.h>
 #endif  // _WIN32
 
 
@@ -71,9 +73,9 @@ bool cFile::Open(const AString & iFileName, eMode iMode)
 	}
 
 	#ifdef _WIN32
-		m_File = _fsopen((FILE_IO_PREFIX + iFileName).c_str(), Mode, _SH_DENYWR);
+		m_File = _fsopen((iFileName).c_str(), Mode, _SH_DENYWR);
 	#else
-		m_File = fopen((FILE_IO_PREFIX + iFileName).c_str(), Mode);
+		m_File = fopen((iFileName).c_str(), Mode);
 	#endif  // _WIN32
 
 	if ((m_File == nullptr) && (iMode == fmReadWrite))
@@ -84,9 +86,9 @@ bool cFile::Open(const AString & iFileName, eMode iMode)
 		// Simply re-open for read-writing, erasing existing contents:
 
 		#ifdef _WIN32
-			m_File = _fsopen((FILE_IO_PREFIX + iFileName).c_str(), "wb+", _SH_DENYWR);
+			m_File = _fsopen((iFileName).c_str(), "wb+", _SH_DENYWR);
 		#else
-			m_File = fopen((FILE_IO_PREFIX + iFileName).c_str(), "wb+");
+			m_File = fopen((iFileName).c_str(), "wb+");
 		#endif  // _WIN32
 
 	}
@@ -692,10 +694,11 @@ AString cFile::GetExecutableExt(void)
 
 
 
-int cFile::Printf(const char * a_Fmt, fmt::ArgList a_ArgList)
+int cFile::vPrintf(const char * a_Fmt, fmt::printf_args a_ArgList)
 {
-	AString buf = ::Printf(a_Fmt, a_ArgList);
-	return Write(buf.c_str(), buf.length());
+	fmt::memory_buffer Buffer;
+	fmt::vprintf(Buffer, fmt::to_string_view(a_Fmt), a_ArgList);
+	return Write(Buffer.data(), Buffer.size());
 }
 
 

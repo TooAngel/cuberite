@@ -107,7 +107,10 @@ public:  // tolua_export
 	/** Formats the type of message with the proper color and prefix for sending to the client. */
 	static AString FormatMessageType(bool ShouldAppendChatPrefixes, eMessageType a_ChatPrefix, const AString & a_AdditionalData);
 
-	static AString FormatChatPrefix(bool ShouldAppendChatPrefixes, AString a_ChatPrefixS, AString m_Color1, AString m_Color2);
+	static AString FormatChatPrefix(
+		bool ShouldAppendChatPrefixes, const AString & a_ChatPrefixS,
+		const AString & m_Color1, const AString & m_Color2
+	);
 
 	void Kick(const AString & a_Reason);  // tolua_export
 
@@ -154,7 +157,7 @@ public:  // tolua_export
 	void SendChatSystem                 (const AString & a_Message, eMessageType a_ChatPrefix, const AString & a_AdditionalData = "");
 	void SendChatSystem                 (const cCompositeChat & a_Message);
 	void SendChunkData                  (int a_ChunkX, int a_ChunkZ, cChunkDataSerializer & a_Serializer);
-	void SendCollectEntity              (const cEntity & a_Entity, const cPlayer & a_Player, int a_Count);
+	void SendCollectEntity              (const cEntity & a_Collected, const cEntity & a_Collector, unsigned a_Count);
 	void SendDestroyEntity              (const cEntity & a_Entity);
 	void SendDetachEntity               (const cEntity & a_Entity, const cEntity & a_PreviousVehicle);
 	void SendDisconnect                 (const AString & a_Reason);
@@ -166,14 +169,12 @@ public:  // tolua_export
 	void SendEntityHeadLook             (const cEntity & a_Entity);
 	void SendEntityLook                 (const cEntity & a_Entity);
 	void SendEntityMetadata             (const cEntity & a_Entity);
-	void SendEntityProperties           (const cEntity & a_Entity);
-	void SendEntityRelMove              (const cEntity & a_Entity, char a_RelX, char a_RelY, char a_RelZ);
-	void SendEntityRelMoveLook          (const cEntity & a_Entity, char a_RelX, char a_RelY, char a_RelZ);
+	void SendEntityPosition             (const cEntity & a_Entity);
 	void SendEntityStatus               (const cEntity & a_Entity, char a_Status);
 	void SendEntityVelocity             (const cEntity & a_Entity);
 	void SendExperience                 (void);
 	void SendExperienceOrb              (const cExpOrb & a_ExpOrb);
-	void SendExplosion                  (double a_BlockX, double a_BlockY, double a_BlockZ, float a_Radius, const cVector3iArray & a_BlocksAffected, const Vector3d & a_PlayerMotion);
+	void SendExplosion                  (const Vector3d a_Pos, float a_Radius, const cVector3iArray & a_BlocksAffected, const Vector3d a_PlayerMotion);
 	void SendGameMode                   (eGameMode a_GameMode);
 	void SendHealth                     (void);
 	void SendHeldItemChange             (int a_ItemIndex);
@@ -184,7 +185,6 @@ public:  // tolua_export
 	void SendPaintingSpawn              (const cPainting & a_Painting);
 	void SendParticleEffect             (const AString & a_ParticleName, float a_SrcX, float a_SrcY, float a_SrcZ, float a_OffsetX, float a_OffsetY, float a_OffsetZ, float a_ParticleData, int a_ParticleAmount);
 	void SendParticleEffect             (const AString & a_ParticleName, const Vector3f a_Src, const Vector3f a_Offset, float a_ParticleData, int a_ParticleAmount, std::array<int, 2> a_Data);
-	void SendPickupSpawn                (const cPickup & a_Pickup);
 	void SendPlayerAbilities            (void);
 	void SendPlayerListAddPlayer        (const cPlayer & a_Player);
 	void SendPlayerListRemovePlayer     (const cPlayer & a_Player);
@@ -197,6 +197,7 @@ public:  // tolua_export
 	void SendPlayerSpawn                (const cPlayer & a_Player);
 	void SendPluginMessage              (const AString & a_Channel, const AString & a_Message);  // Exported in ManualBindings.cpp
 	void SendRemoveEntityEffect         (const cEntity & a_Entity, int a_EffectID);
+	void SendResourcePack               (const AString & a_ResourcePackUrl);
 	void SendResetTitle                 (void);  // tolua_export
 	void SendRespawn                    (eDimension a_Dimension, bool a_ShouldIgnoreDimensionChecks = false);
 	void SendScoreUpdate                (const AString & a_Objective, const AString & a_Player, cObjective::Score a_Score, Byte a_Mode);
@@ -208,13 +209,10 @@ public:  // tolua_export
 	void SendSoundEffect                (const AString & a_SoundName, double a_X, double a_Y, double a_Z, float a_Volume, float a_Pitch);  // tolua_export
 	void SendSoundEffect                (const AString & a_SoundName, Vector3d a_Position, float a_Volume, float a_Pitch);  // tolua_export
 	void SendSoundParticleEffect        (const EffectID a_EffectID, int a_SrcX, int a_SrcY, int a_SrcZ, int a_Data);
-	void SendSpawnFallingBlock          (const cFallingBlock & a_FallingBlock);
+	void SendSpawnEntity                (const cEntity & a_Entity);
 	void SendSpawnMob                   (const cMonster & a_Mob);
-	void SendSpawnObject                (const cEntity & a_Entity, char a_ObjectType, int a_ObjectData, Byte a_Yaw, Byte a_Pitch);
-	void SendSpawnVehicle               (const cEntity & a_Vehicle, char a_VehicleType, char a_VehicleSubType = 0);
 	void SendStatistics                 (const cStatManager & a_Manager);
 	void SendTabCompletionResults       (const AStringVector & a_Results);
-	void SendTeleportEntity             (const cEntity & a_Entity);
 	void SendThunderbolt                (int a_BlockX, int a_BlockY, int a_BlockZ);
 	void SendTitleTimes                 (int a_FadeInTicks, int a_DisplayTicks, int a_FadeOutTicks);  // tolua_export
 	void SendTimeUpdate                 (Int64 a_WorldAge, Int64 a_TimeOfDay, bool a_DoDaylightCycle);  // tolua_export
@@ -223,6 +221,13 @@ public:  // tolua_export
 	void SendUpdateBlockEntity          (cBlockEntity & a_BlockEntity);
 	void SendUpdateSign                 (int a_BlockX, int a_BlockY, int a_BlockZ, const AString & a_Line1, const AString & a_Line2, const AString & a_Line3, const AString & a_Line4);
 	void SendUseBed                     (const cEntity & a_Entity, int a_BlockX, int a_BlockY, int a_BlockZ);
+
+	/** Send a newly discovered recipe to show the notification and unlock in the recipe book */
+	void SendUnlockRecipe               (UInt32 a_RecipeId);
+
+	/** Send already known recipes without notification but visible in the recipe book */
+	void SendInitRecipes                (UInt32 a_RecipeId);
+
 	void SendWeather                    (eWeather a_Weather);
 	void SendWholeInventory             (const cWindow & a_Window);
 	void SendWindowClose                (const cWindow & a_Window);
@@ -372,6 +377,9 @@ public:  // tolua_export
 	void HandleUseItem          (eHand a_Hand);
 	void HandleWindowClick      (UInt8 a_WindowID, Int16 a_SlotNum, eClickAction a_ClickAction, const cItem & a_HeldItem);
 	void HandleWindowClose      (UInt8 a_WindowID);
+
+	/** Called when a recipe from the recipe book is selected */
+	void HandleCraftRecipe      (UInt32 a_RecipeId);
 
 	/** Called when the protocol has finished logging the user in.
 	Return true to allow the user in; false to kick them.
@@ -590,6 +598,10 @@ private:
 
 	/** Called right after the instance is created to store its SharedPtr inside. */
 	void SetSelf(cClientHandlePtr a_Self);
+
+	/** Called to update m_State.
+	Only succeeds if a_NewState > m_State, otherwise returns false. */
+	bool SetState(eState a_NewState);
 
 	/** Processes the data in the network input and output buffers.
 	Called by both Tick() and ServerTick(). */

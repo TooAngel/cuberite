@@ -1,19 +1,16 @@
-project (Cuberite)
+target_sources(
+	${CMAKE_PROJECT_NAME} PRIVATE
 
-include_directories ("${PROJECT_SOURCE_DIR}/../")
-
-SET (SRCS
 	BlockBed.cpp
 	BlockDoor.cpp
 	BlockHandler.cpp
 	BlockPiston.cpp
 	ChunkInterface.cpp
-)
 
-SET (HDRS
 	BlockAnvil.h
 	BlockBed.h
 	BlockBigFlower.h
+	BlockBookShelf.h
 	BlockBrewingStand.h
 	BlockButton.h
 	BlockCactus.h
@@ -46,6 +43,7 @@ SET (HDRS
 	BlockFurnace.h
 	BlockGlass.h
 	BlockGlowstone.h
+	BlockGrass.h
 	BlockGravel.h
 	BlockHandler.h
 	BlockHopper.h
@@ -61,6 +59,7 @@ SET (HDRS
 	BlockMycelium.h
 	BlockNetherrack.h
 	BlockNetherWart.h
+	BlockObserver.h
 	BlockOre.h
 	BlockPiston.h
 	BlockPlanks.h
@@ -82,6 +81,7 @@ SET (HDRS
 	BlockSignPost.h
 	BlockSlab.h
 	BlockSnow.h
+	BlockSponge.h
 	BlockStairs.h
 	BlockStems.h
 	BlockStone.h
@@ -101,8 +101,3 @@ SET (HDRS
 	Mixins.h
 	WorldInterface.h
 )
-
-if(NOT MSVC)
-	add_library(Blocks ${SRCS} ${HDRS})
-	target_link_libraries(Blocks fmt::fmt)
-endif()

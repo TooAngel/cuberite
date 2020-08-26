@@ -17,9 +17,9 @@ class cWorld;
 
 
 class cBlockPistonHandler:
-	public cClearMetaOnDrop<cBlockHandler>
+	public cClearMetaOnDrop<cPitchYawRotator<cBlockHandler, 0x07, 0x03, 0x04, 0x02, 0x05, 0x01, 0x00>>
 {
-	using super = cClearMetaOnDrop<cBlockHandler>;
+	using Super = cClearMetaOnDrop<cPitchYawRotator<cBlockHandler, 0x07, 0x03, 0x04, 0x02, 0x05, 0x01, 0x00>>;
 
 public:
 
@@ -30,50 +30,6 @@ public:
 		Vector3i a_BlockPos,
 		BLOCKTYPE a_OldBlockType, NIBBLETYPE a_OldBlockMeta
 	) override;
-
-	virtual bool GetPlacementBlockTypeMeta(
-		cChunkInterface & a_ChunkInterface, cPlayer & a_Player,
-		int a_BlockX, int a_BlockY, int a_BlockZ, eBlockFace a_BlockFace,
-		int a_CursorX, int a_CursorY, int a_CursorZ,
-		BLOCKTYPE & a_BlockType, NIBBLETYPE & a_BlockMeta
-	) override;
-
-	static NIBBLETYPE RotationPitchToMetaData(double a_Rotation, double a_Pitch)
-	{
-		if (a_Pitch >= 50)
-		{
-			return 0x1;
-		}
-		else if (a_Pitch <= -50)
-		{
-			return 0x0;
-		}
-		else
-		{
-			a_Rotation += 90 + 45;  // So its not aligned with axis
-
-			if (a_Rotation > 360)
-			{
-				a_Rotation -= 360;
-			}
-			if ((a_Rotation >= 0) && (a_Rotation < 90))
-			{
-				return 0x4;
-			}
-			else if ((a_Rotation >= 180) && (a_Rotation < 270))
-			{
-				return 0x5;
-			}
-			else if ((a_Rotation >= 90) && (a_Rotation < 180))
-			{
-				return 0x2;
-			}
-			else
-			{
-				return 0x3;
-			}
-		}
-	}
 
 	static eBlockFace MetaDataToDirection(NIBBLETYPE a_MetaData)
 	{
@@ -141,7 +97,7 @@ private:
 			case E_BLOCK_END_GATEWAY:
 			case E_BLOCK_END_PORTAL:
 			case E_BLOCK_END_PORTAL_FRAME:
-			// Notice the lack of an E_BLOCK_ENDER_CHEST here; its because ender chests can totally be pushed / pulled in MCS :)
+			case E_BLOCK_ENDER_CHEST:
 			case E_BLOCK_FURNACE:
 			case E_BLOCK_LIT_FURNACE:
 			case E_BLOCK_INVERTED_DAYLIGHT_SENSOR:
@@ -189,7 +145,7 @@ private:
 class cBlockPistonHeadHandler:
 	public cBlockHandler
 {
-	using super = cBlockHandler;
+	using Super = cBlockHandler;
 
 public:
 	cBlockPistonHeadHandler(void);

@@ -1,5 +1,6 @@
+target_sources(
+	${CMAKE_PROJECT_NAME} PRIVATE
 
-SET (SRCS
 	AggressiveMonster.cpp
 	Bat.cpp
 	Blaze.cpp
@@ -33,11 +34,12 @@ SET (SRCS
 	Villager.cpp
 	Witch.cpp
 	Wither.cpp
+	WitherSkeleton.cpp
 	Wolf.cpp
 	Zombie.cpp
-	ZombiePigman.cpp)
+	ZombiePigman.cpp
+	ZombieVillager.cpp
 
-SET (HDRS
 	AggressiveMonster.h
 	Bat.h
 	Blaze.h
@@ -74,11 +76,9 @@ SET (HDRS
 	Villager.h
 	Witch.h
 	Wither.h
+	WitherSkeleton.h
 	Wolf.h
 	Zombie.h
-	ZombiePigman.h)
-
-if(NOT MSVC)
-	add_library(Mobs ${SRCS} ${HDRS})
-	target_link_libraries(Mobs fmt::fmt)
-endif()
+	ZombiePigman.h
+	ZombieVillager.h
+)

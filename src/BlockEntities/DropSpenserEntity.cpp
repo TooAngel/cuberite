@@ -16,7 +16,7 @@
 
 
 cDropSpenserEntity::cDropSpenserEntity(BLOCKTYPE a_BlockType, NIBBLETYPE a_BlockMeta, Vector3i a_Pos, cWorld * a_World):
-	super(a_BlockType, a_BlockMeta, a_Pos, ContentsWidth, ContentsHeight, a_World),
+	Super(a_BlockType, a_BlockMeta, a_Pos, ContentsWidth, ContentsHeight, a_World),
 	m_ShouldDropSpense(false)
 {
 }
@@ -51,7 +51,6 @@ void cDropSpenserEntity::AddDropSpenserDir(Vector3i & a_RelCoord, NIBBLETYPE a_D
 		case E_META_DROPSPENSER_FACING_XP: a_RelCoord.x++; return;
 	}
 	LOGWARNING("%s: Unhandled direction: %d", __FUNCTION__, a_Direction);
-	return;
 }
 
 
@@ -115,7 +114,7 @@ void cDropSpenserEntity::Activate(void)
 
 void cDropSpenserEntity::CopyFrom(const cBlockEntity & a_Src)
 {
-	super::CopyFrom(a_Src);
+	Super::CopyFrom(a_Src);
 	auto & src = static_cast<const cDropSpenserEntity &>(a_Src);
 	m_Contents.CopyFrom(src.m_Contents);
 	m_ShouldDropSpense = src.m_ShouldDropSpense;

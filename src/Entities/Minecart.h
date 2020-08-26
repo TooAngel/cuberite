@@ -20,7 +20,7 @@
 class cMinecart :
 	public cEntity
 {
-	using super = cEntity;
+	using Super = cEntity;
 
 public:
 	CLASS_PROTODEF(cMinecart)
@@ -83,8 +83,13 @@ protected:
 	void SnapToRail(NIBBLETYPE a_RailMeta);
 	/** Tests if a solid block is in front of a cart, and stops the cart (and returns true) if so; returns false if no obstruction */
 	bool TestBlockCollision(NIBBLETYPE a_RailMeta);
+	/** Tests if there is a block at the specified position which is impassable to minecarts */
+	bool IsSolidBlockAtPosition(Vector3i a_Offset);
 	/** Tests if a solid block is at a specific offset of the minecart position */
 	bool IsSolidBlockAtOffset(int a_XOffset, int a_YOffset, int a_ZOffset);
+
+	bool IsBlockCollisionAtOffset(Vector3i a_Offset);
+
 	/** Tests if this mincecart's bounding box is intersecting another entity's bounding box (collision) and pushes mincecart away if necessary */
 	bool TestEntityCollision(NIBBLETYPE a_RailMeta);
 
@@ -97,7 +102,7 @@ protected:
 class cRideableMinecart :
 	public cMinecart
 {
-	using super = cMinecart;
+	using Super = cMinecart;
 
 public:
 
@@ -127,7 +132,7 @@ class cMinecartWithChest :
 	public cItemGrid::cListener,
 	public cEntityWindowOwner
 {
-	using super = cMinecart;
+	using Super = cMinecart;
 
 public:
 
@@ -178,7 +183,7 @@ protected:
 class cMinecartWithFurnace :
 	public cMinecart
 {
-	using super = cMinecart;
+	using Super = cMinecart;
 
 public:
 
@@ -211,7 +216,7 @@ private:
 class cMinecartWithTNT :
 	public cMinecart
 {
-	using super = cMinecart;
+	using Super = cMinecart;
 
 public:
 	CLASS_PROTODEF(cMinecartWithTNT)
@@ -226,7 +231,7 @@ public:
 class cMinecartWithHopper :
 	public cMinecart
 {
-	using super = cMinecart;
+	using Super = cMinecart;
 
 public:
 

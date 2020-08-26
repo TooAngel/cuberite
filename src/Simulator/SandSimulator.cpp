@@ -2,6 +2,7 @@
 #include "Globals.h"  // NOTE: MSVC stupidness requires this to be the same across all modules
 
 #include "SandSimulator.h"
+#include "../BlockInfo.h"
 #include "../World.h"
 #include "../Defines.h"
 #include "../Entities/FallingBlock.h"
@@ -61,12 +62,7 @@ void cSandSimulator::SimulateChunk(std::chrono::milliseconds a_Dt, int a_ChunkX,
 			);
 			*/
 
-			auto FallingBlock = cpp14::make_unique<cFallingBlock>(Pos, BlockType, a_Chunk->GetMeta(itr->x, itr->y, itr->z));
-			auto FallingBlockPtr = FallingBlock.get();
-			if (!FallingBlockPtr->Initialize(std::move(FallingBlock), m_World))
-			{
-				continue;
-			}
+			m_World.SpawnFallingBlock(Pos, BlockType, a_Chunk->GetMeta(itr->x, itr->y, itr->z));
 			a_Chunk->SetBlock({itr->x, itr->y, itr->z}, E_BLOCK_AIR, 0);
 		}
 	}
@@ -283,7 +279,7 @@ void cSandSimulator::FinishFalling(
 
 	// Create a pickup instead:
 	cItems Pickups;
-	Pickups.Add(static_cast<ENUM_ITEM_ID>(a_FallingBlockType), 1, a_FallingBlockMeta);
+	Pickups.Add(static_cast<ENUM_ITEM_TYPE>(a_FallingBlockType), 1, a_FallingBlockMeta);
 	a_World->SpawnItemPickups(
 		Pickups,
 		static_cast<double>(a_BlockX) + 0.5,

@@ -14,6 +14,7 @@
 #include "../Scoreboard.h"
 #include "../ByteBuffer.h"
 #include "../EffectID.h"
+#include "../World.h"
 
 
 
@@ -111,6 +112,7 @@ public:
 		pktPlayerMoveLook,
 		pktPluginMessage,
 		pktRemoveEntityEffect,
+		pktResourcePack,
 		pktRespawn,
 		pktScoreboardObjective,
 		pktSpawnObject,
@@ -130,6 +132,7 @@ public:
 		pktTimeUpdate,
 		pktTitle,
 		pktUnloadChunk,
+		pktUnlockRecipe,
 		pktUpdateBlockEntity,
 		pktUpdateHealth,
 		pktUpdateScore,
@@ -156,19 +159,19 @@ public:
 	virtual void SendChat                       (const cCompositeChat & a_Message, eChatType a_Type, bool a_ShouldUseChatPrefixes) = 0;
 	virtual void SendChatRaw                    (const AString & a_MessageRaw, eChatType a_Type) = 0;
 	virtual void SendChunkData                  (int a_ChunkX, int a_ChunkZ, cChunkDataSerializer & a_Serializer) = 0;
-	virtual void SendCollectEntity              (const cEntity & a_Entity, const cPlayer & a_Player, int a_Count) = 0;
+	virtual void SendCollectEntity              (const cEntity & a_Collected, const cEntity & a_Collector, unsigned a_Count) = 0;
 	virtual void SendDestroyEntity              (const cEntity & a_Entity) = 0;
 	virtual void SendDetachEntity               (const cEntity & a_Entity, const cEntity & a_PreviousVehicle) = 0;
 	virtual void SendDisconnect                 (const AString & a_Reason) = 0;
 	virtual void SendEditSign                   (int a_BlockX, int a_BlockY, int a_BlockZ) = 0;  ///< Request the client to open up the sign editor for the sign (1.6+)
 	virtual void SendEntityEffect               (const cEntity & a_Entity, int a_EffectID, int a_Amplifier, int a_Duration) = 0;
+	virtual void SendEntityAnimation            (const cEntity & a_Entity, char a_Animation) = 0;
 	virtual void SendEntityEquipment            (const cEntity & a_Entity, short a_SlotNum, const cItem & a_Item) = 0;
 	virtual void SendEntityHeadLook             (const cEntity & a_Entity) = 0;
 	virtual void SendEntityLook                 (const cEntity & a_Entity) = 0;
 	virtual void SendEntityMetadata             (const cEntity & a_Entity) = 0;
+	virtual void SendEntityPosition             (const cEntity & a_Entity) = 0;
 	virtual void SendEntityProperties           (const cEntity & a_Entity) = 0;
-	virtual void SendEntityRelMove              (const cEntity & a_Entity, char a_RelX, char a_RelY, char a_RelZ) = 0;
-	virtual void SendEntityRelMoveLook          (const cEntity & a_Entity, char a_RelX, char a_RelY, char a_RelZ) = 0;
 	virtual void SendEntityStatus               (const cEntity & a_Entity, char a_Status) = 0;
 	virtual void SendEntityVelocity             (const cEntity & a_Entity) = 0;
 	virtual void SendExplosion                  (double a_BlockX, double a_BlockY, double a_BlockZ, float a_Radius, const cVector3iArray & a_BlocksAffected, const Vector3d & a_PlayerMotion) = 0;
@@ -183,9 +186,7 @@ public:
 	virtual void SendLoginSuccess               (void) = 0;
 	virtual void SendMapData                    (const cMap & a_Map, int a_DataStartX, int a_DataStartY) = 0;
 	virtual void SendPaintingSpawn              (const cPainting & a_Painting) = 0;
-	virtual void SendPickupSpawn                (const cPickup & a_Pickup) = 0;
 	virtual void SendPlayerAbilities            (void) = 0;
-	virtual void SendEntityAnimation            (const cEntity & a_Entity, char a_Animation) = 0;
 	virtual void SendParticleEffect             (const AString & a_SoundName, float a_SrcX, float a_SrcY, float a_SrcZ, float a_OffsetX, float a_OffsetY, float a_OffsetZ, float a_ParticleData, int a_ParticleAmount) = 0;
 	virtual void SendParticleEffect             (const AString & a_SoundName, Vector3f a_Src, Vector3f a_Offset, float a_ParticleData, int a_ParticleAmount, std::array<int, 2> a_Data) = 0;
 	virtual void SendPlayerListAddPlayer        (const cPlayer & a_Player) = 0;
@@ -200,6 +201,7 @@ public:
 	virtual void SendPluginMessage              (const AString & a_Channel, const AString & a_Message) = 0;
 	virtual void SendRemoveEntityEffect         (const cEntity & a_Entity, int a_EffectID) = 0;
 	virtual void SendResetTitle                 (void) = 0;
+	virtual void SendResourcePack               (const AString & a_ResourcePackUrl) = 0;
 	virtual void SendRespawn                    (eDimension a_Dimension) = 0;
 	virtual void SendExperience                 (void) = 0;
 	virtual void SendExperienceOrb              (const cExpOrb & a_ExpOrb) = 0;
@@ -212,13 +214,10 @@ public:
 	virtual void SendSetRawTitle                (const AString & a_Title) = 0;
 	virtual void SendSoundEffect                (const AString & a_SoundName, double a_X, double a_Y, double a_Z, float a_Volume, float a_Pitch) = 0;
 	virtual void SendSoundParticleEffect        (const EffectID a_EffectID, int a_SrcX, int a_SrcY, int a_SrcZ, int a_Data) = 0;
-	virtual void SendSpawnFallingBlock          (const cFallingBlock & a_FallingBlock) = 0;
+	virtual void SendSpawnEntity                (const cEntity & a_Entity) = 0;
 	virtual void SendSpawnMob                   (const cMonster & a_Mob) = 0;
-	virtual void SendSpawnObject                (const cEntity & a_Entity, char a_ObjectType, int a_ObjectData, Byte a_Yaw, Byte a_Pitch) = 0;
-	virtual void SendSpawnVehicle               (const cEntity & a_Vehicle, char a_VehicleType, char a_VehicleSubType) = 0;
 	virtual void SendStatistics                 (const cStatManager & a_Manager) = 0;
 	virtual void SendTabCompletionResults       (const AStringVector & a_Results) = 0;
-	virtual void SendTeleportEntity             (const cEntity & a_Entity) = 0;
 	virtual void SendThunderbolt                (int a_BlockX, int a_BlockY, int a_BlockZ) = 0;
 	virtual void SendTitleTimes                 (int a_FadeInTicks, int a_DisplayTicks, int a_FadeOutTicks) = 0;
 	virtual void SendTimeUpdate                 (Int64 a_WorldAge, Int64 a_TimeOfDay, bool a_DoDaylightCycle) = 0;
@@ -227,6 +226,8 @@ public:
 	virtual void SendUpdateBlockEntity          (cBlockEntity & a_BlockEntity) = 0;
 	virtual void SendUpdateSign                 (int a_BlockX, int a_BlockY, int a_BlockZ, const AString & a_Line1, const AString & a_Line2, const AString & a_Line3, const AString & a_Line4) = 0;
 	virtual void SendUseBed                     (const cEntity & a_Entity, int a_BlockX, int a_BlockY, int a_BlockZ) = 0;
+	virtual void SendUnlockRecipe               (UInt32 a_RecipeID) = 0;
+	virtual void SendInitRecipes                (UInt32 a_RecipeID) = 0;
 	virtual void SendWeather                    (eWeather a_Weather) = 0;
 	virtual void SendWholeInventory             (const cWindow    & a_Window) = 0;
 	virtual void SendWindowClose                (const cWindow    & a_Window) = 0;
@@ -235,7 +236,6 @@ public:
 
 	/** Returns the ServerID used for authentication through session.minecraft.net */
 	virtual AString GetAuthServerID(void) = 0;
-
 
 protected:
 

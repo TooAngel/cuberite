@@ -26,6 +26,8 @@ Implements the 1.13 protocol classes:
 #include "../ClientHandle.h"
 #include "../Root.h"
 #include "../Server.h"
+#include "../World.h"
+#include "../JsonUtils.h"
 
 #include "../Bindings/PluginManager.h"
 
@@ -138,6 +140,7 @@ UInt32 cProtocol_1_13::GetPacketID(ePacketType a_PacketType)
 		case pktTimeUpdate:           return 0x4a;
 		case pktTitle:                return 0x4b;
 		case pktUnloadChunk:          return 0x1f;
+		case pktUnlockRecipe:         return 0x32;
 		case pktUpdateHealth:         return 0x44;
 		case pktUpdateScore:          return 0x48;
 		case pktUpdateSign:           return GetPacketID(pktUpdateBlockEntity);
@@ -252,9 +255,8 @@ void cProtocol_1_13::HandlePacketStatusRequest(cByteBuffer & a_ByteBuffer)
 	}
 
 	// Serialize the response into a packet:
-	Json::FastWriter Writer;
 	cPacketizer Pkt(*this, pktStatusResponse);
-	Pkt.WriteString(Writer.write(ResponseValue));
+	Pkt.WriteString(JsonUtils::WriteFastString(ResponseValue));
 }
 
 
@@ -350,24 +352,6 @@ void cProtocol_1_13::SendPaintingSpawn(const cPainting & a_Painting)
 
 
 
-void cProtocol_1_13::SendParticleEffect(const AString & a_ParticleName, float a_SrcX, float a_SrcY, float a_SrcZ, float a_OffsetX, float a_OffsetY, float a_OffsetZ, float a_ParticleData, int a_ParticleAmount)
-{
-	// TODO
-}
-
-
-
-
-
-void cProtocol_1_13::SendParticleEffect(const AString & a_ParticleName, Vector3f a_Src, Vector3f a_Offset, float a_ParticleData, int a_ParticleAmount, std::array<int, 2> a_Data)
-{
-	// TODO
-}
-
-
-
-
-
 void cProtocol_1_13::SendPluginMessage(const AString & a_Channel, const AString & a_Message)
 {
 	// TODO
@@ -378,15 +362,6 @@ void cProtocol_1_13::SendPluginMessage(const AString & a_Channel, const AString 
 
 
 void cProtocol_1_13::SendScoreboardObjective(const AString & a_Name, const AString & a_DisplayName, Byte a_Mode)
-{
-	// TODO
-}
-
-
-
-
-
-void cProtocol_1_13::SendSoundEffect(const AString & a_SoundName, double a_X, double a_Y, double a_Z, float a_Volume, float a_Pitch)
 {
 	// TODO
 }
@@ -416,6 +391,53 @@ void cProtocol_1_13::SendTabCompletionResults(const AStringVector & a_Results)
 void cProtocol_1_13::SendUpdateBlockEntity(cBlockEntity & a_BlockEntity)
 {
 	// TODO
+}
+
+
+
+
+
+UInt32 cProtocol_1_13::GetProtocolMobType(eMonsterType a_MobType)
+{
+	switch (a_MobType)
+	{
+		// Map invalid type to Giant for easy debugging (if this ever spawns, something has gone very wrong)
+		case mtInvalidType:           return 27;
+		case mtBat:                   return 3;
+		case mtBlaze:                 return 4;
+		case mtCaveSpider:            return 6;
+		case mtChicken:               return 7;
+		case mtCow:                   return 9;
+		case mtCreeper:               return 10;
+		case mtEnderDragon:           return 17;
+		case mtEnderman:              return 18;
+		case mtGhast:                 return 26;
+		case mtGiant:                 return 27;
+		case mtGuardian:              return 28;
+		case mtHorse:                 return 29;
+		case mtIronGolem:             return 80;
+		case mtMagmaCube:             return 38;
+		case mtMooshroom:             return 47;
+		case mtOcelot:                return 48;
+		case mtPig:                   return 51;
+		case mtRabbit:                return 56;
+		case mtSheep:                 return 58;
+		case mtSilverfish:            return 61;
+		case mtSkeleton:              return 62;
+		case mtSlime:                 return 64;
+		case mtSnowGolem:             return 66;
+		case mtSpider:                return 69;
+		case mtSquid:                 return 70;
+		case mtVillager:              return 79;
+		case mtWitch:                 return 82;
+		case mtWither:                return 83;
+		case mtWitherSkeleton:        return 84;
+		case mtWolf:                  return 86;
+		case mtZombie:                return 87;
+		case mtZombiePigman:          return 53;
+		case mtZombieVillager:        return 89;
+	}
+	UNREACHABLE("Unsupported mob type");
 }
 
 
